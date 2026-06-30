@@ -9,11 +9,16 @@ class Order extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['order_code', 'table_id', 'user_id', 'total_price', 'status'];
+    protected $fillable = ['order_code', 'table_id', 'branch_id', 'user_id', 'total_price', 'status'];
 
     public function table()
     {
         return $this->belongsTo(Table::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function user()

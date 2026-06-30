@@ -2,8 +2,11 @@
 
 use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\BranchController;
+use App\Http\Controllers\MenuController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StaffAuthController;
+use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -47,6 +50,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         })->name('dashboard');
 
         Route::resource('branches', BranchController::class);
+        Route::resource('users', UserController::class);
+        Route::resource('menus', MenuController::class);
+        Route::resource('orders', OrderController::class);
 
         Route::post('/logout', [AdminAuthController::class, 'destroy'])->name('logout');
     });

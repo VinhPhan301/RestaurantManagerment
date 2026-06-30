@@ -9,10 +9,15 @@ class Menu extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['category_id', 'name', 'description', 'price', 'image', 'is_available', 'is_best_seller', 'is_must_try'];
+    protected $fillable = ['category_id', 'branch_id', 'name', 'description', 'price', 'image', 'is_available', 'is_best_seller', 'is_must_try'];
 
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }
