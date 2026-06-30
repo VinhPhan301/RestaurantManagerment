@@ -1,0 +1,288 @@
+<script setup>
+import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { useForm } from '@inertiajs/vue3';
+import { ref, watch } from 'vue';
+
+const props = defineProps({
+    tables: Array,
+    branches: Array,
+    filters: Object,
+});
+
+const showModal = ref(false);
+const isEditing = ref(false);
+const editingTable = ref(null);
+const selectedBranchId = ref(props.filters.branch_id || '');
+
+const form = useForm({
+    branch_id: '',
+    name: '',
+    capacity: 4,
+    status: 'empty',
+});
+
+watch(selectedBranchId, (value) => {
+    const params = new URLSearchParams();
+    if (value) {
+        params.set('branch_id', value);
+    }
+    window.location.href = route('admin.tables.index') + (value ? '?' + params.toString() : '');
+});
+
+const openModal = (table = null) => {
+    if (table) {
+        isEditing.value = true;
+        editingTable.value = table;
+        form.branch_id = table.branch_id;
+        form.name = table.name;
+        form.capacity = table.capacity;
+        form.status = table.status;
+    } else {
+        isEditing.value = false;
+        editingTable.value = null;
+        form.reset();
+        form.capacity = 4;
+        form.status = 'empty';
+        form.branch_id = selectedBranchId.value || '';
+    }
+    showModal.value = true;
+};
+
+const closeModal = () => {
+    showModal.value = false;
+    form.reset();
+    editingTable.value = null;
+    isEditing.value = false;
+};
+
+const submit = () => {
+    if (isEditing.value && editingTable.value) {
+        form.put(route('admin.tables.update', editingTable.value.id), {
+            onSuccess: () => closeModal(),
+        });
+    } else {
+        form.post(route('admin.tables.store'), {
+            onSuccess: () => closeModal(),
+        });
+    }
+};
+
+const deleteTable = (table) => {
+    if (confirm('Bạn có chắc chắn muốn xóa bàn này?')) {
+        form.delete(route('admin.tables.destroy', table.id));
+    }
+};
+
+const toggleStatus = (table) => {
+    const newStatus = table.status === 'empty' ? 'occupied' : 'empty';
+    form.put(route('admin.tables.update', table.id), {
+        data: {
+            branch_id: table.branch_id,
+            name: table.name,
+            capacity: table.capacity,
+            status: newStatus,
+        },
+    });
+};
+
+const getStatusClass = (status) => {
+    const classes = {
+        empty: 'bg-green-100 text-green-800',
+        occupied: 'bg-red-100 text-red-800',
+        reserved: 'bg-yellow-100 text-yellow-800',
+    };
+    return classes[status] || 'bg-gray-100 text-gray-800';
+};
+
+const getStatusText = (status) => {
+    const texts = {
+        empty: 'Trống',
+        occupied: 'Có khách',
+        reserved: 'Đã đặt',
+    };
+    return texts[status] || status;
+};
+</script>
+
+<template>
+    <AdminLayout title="Quản lý Bàn">
+        <div class="flex justify-between items-center mb-6">
+            <button
+                @click="openModal()"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+            >
+                Thêm Bàn
+            </button>
+        </div>
+
+        <!-- Filter -->
+        <div class="bg-white shadow rounded-lg p-4 mb-6">
+            <div class="flex items-center gap-4">
+                <label class="text-gray-700 font-medium">Lọc theo chi nhánh:</label>
+                <select
+                    v-model="selectedBranchId"
+                    class="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    <option value="">Tất cả chi nhánh</option>
+                    <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                        {{ branch.name }}
+                    </option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tables Table -->
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tên bàn
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Chi nhánh
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Sức chứa
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Trạng thái
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Hành động
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <tr v-for="table in tables" :key="table.id">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ table.name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-500">{{ table.branch ? table.branch.name : '-' }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-500">{{ table.capacity }} người</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <button
+                                @click="toggleStatus(table)"
+                                :class="getStatusClass(table.status)"
+                                class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
+                            >
+                                {{ getStatusText(table.status) }}
+                            </button>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                                @click="openModal(table)"
+                                class="text-indigo-600 hover:text-indigo-900 mr-4"
+                            >
+                                Sửa
+                            </button>
+                            <button
+                                @click="deleteTable(table)"
+                                class="text-red-600 hover:text-red-900"
+                            >
+                                Xóa
+                            </button>
+                        </td>
+                    </tr>
+                    <tr v-if="tables.length === 0">
+                        <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                            Chưa có bàn nào
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Modal -->
+        <div v-if="showModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+            <div class="relative p-5 border w-96 shadow-lg rounded-md bg-white">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">
+                    {{ isEditing ? 'Sửa Bàn' : 'Thêm Bàn Mới' }}
+                </h3>
+
+                <form @submit.prevent="submit">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">
+                            Chi nhánh *
+                        </label>
+                        <select
+                            v-model="form.branch_id"
+                            class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        >
+                            <option value="">Chọn chi nhánh</option>
+                            <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                                {{ branch.name }}
+                            </option>
+                        </select>
+                        <div v-if="form.errors.branch_id" class="text-red-500 text-xs mt-1">{{ form.errors.branch_id }}</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">
+                            Tên bàn *
+                        </label>
+                        <input
+                            v-model="form.name"
+                            type="text"
+                            class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                        <div v-if="form.errors.name" class="text-red-500 text-xs mt-1">{{ form.errors.name }}</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">
+                            Sức chứa *
+                        </label>
+                        <input
+                            v-model="form.capacity"
+                            type="number"
+                            min="1"
+                            class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                        <div v-if="form.errors.capacity" class="text-red-500 text-xs mt-1">{{ form.errors.capacity }}</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">
+                            Trạng thái *
+                        </label>
+                        <select
+                            v-model="form.status"
+                            class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        >
+                            <option value="empty">Trống</option>
+                            <option value="occupied">Có khách</option>
+                            <option value="reserved">Đã đặt</option>
+                        </select>
+                        <div v-if="form.errors.status" class="text-red-500 text-xs mt-1">{{ form.errors.status }}</div>
+                    </div>
+
+                    <div class="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            @click="closeModal"
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="submit"
+                            :disabled="form.processing"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition disabled:opacity-50"
+                        >
+                            {{ isEditing ? 'Cập Nhật' : 'Thêm' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </AdminLayout>
+</template>
