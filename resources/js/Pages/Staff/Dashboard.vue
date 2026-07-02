@@ -1,54 +1,459 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+
+const props = defineProps({
+    branch: Object,
+    tables: Array,
+    menus: Array,
+    categories: Array,
+});
+
+const selectedTable = ref(null);
+const selectedCategory = ref('all');
+const mode = ref('tables');
+const cart = ref([]);
+const moveTargetId = ref('');
+
+const orderForm = useForm({
+    table_id: null,
+    items: [],
+});
+
+const moveForm = useForm({
+    current_table_id: null,
+    target_table_id: null,
+});
+
+const checkoutForm = useForm({
+    table_id: null,
+});
+
+const specialCategoryNames = new Set(['best seller', 'must try']);
+
+const visibleCategories = computed(() => props.categories.filter((category) => (
+    !specialCategoryNames.has(category.name.trim().toLowerCase())
+)));
+
+const tabs = computed(() => [
+    { key: 'all', label: 'Tất cả' },
+    { key: 'best-seller', label: 'Best Seller' },
+    { key: 'must-try', label: 'Must Try' },
+    ...visibleCategories.value.map((category) => ({
+        key: `category-${category.id}`,
+        label: category.name,
+    })),
+]);
+
+const filteredMenus = computed(() => {
+    if (selectedCategory.value === 'best-seller') {
+        return props.menus.filter((menu) => menu.is_best_seller);
+    }
+
+    if (selectedCategory.value === 'must-try') {
+        return props.menus.filter((menu) => menu.is_must_try);
+    }
+
+    if (selectedCategory.value.startsWith('category-')) {
+        const categoryId = Number(selectedCategory.value.replace('category-', ''));
+        return props.menus.filter((menu) => menu.category_id === categoryId);
+    }
+
+    return props.menus;
+});
+
+const emptyTables = computed(() => props.tables.filter((table) => table.status === 'empty'));
+
+const cartTotal = computed(() => cart.value.reduce((total, item) => total + item.price * item.quantity, 0));
+
+const selectedOrderTotal = computed(() => {
+    if (!selectedTable.value?.active_order) {
+        return 0;
+    }
+
+    return selectedTable.value.active_order.items.reduce((total, item) => total + item.price * item.quantity, 0);
+});
+
+const formatPrice = (price) => new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+}).format(Number(price || 0));
+
+const selectTable = (table) => {
+    selectedTable.value = table;
+    moveTargetId.value = '';
+    orderForm.clearErrors();
+    moveForm.clearErrors();
+    checkoutForm.clearErrors();
+
+    if (table.status === 'empty') {
+        mode.value = 'order';
+        cart.value = [];
+        orderForm.table_id = table.id;
+    } else {
+        mode.value = 'checkout';
+        checkoutForm.table_id = table.id;
+        moveForm.current_table_id = table.id;
+    }
+};
+
+const addMenu = (menu) => {
+    if (!selectedTable.value || selectedTable.value.status !== 'empty') {
+        return;
+    }
+
+    const existing = cart.value.find((item) => item.menu_id === menu.id);
+
+    if (existing) {
+        existing.quantity += 1;
+        return;
+    }
+
+    cart.value.push({
+        menu_id: menu.id,
+        name: menu.name,
+        price: Number(menu.price),
+        quantity: 1,
+        notes: '',
+    });
+};
+
+const increase = (item) => {
+    item.quantity += 1;
+};
+
+const decrease = (item) => {
+    if (item.quantity > 1) {
+        item.quantity -= 1;
+        return;
+    }
+
+    cart.value = cart.value.filter((cartItem) => cartItem.menu_id !== item.menu_id);
+};
+
+const removeItem = (item) => {
+    cart.value = cart.value.filter((cartItem) => cartItem.menu_id !== item.menu_id);
+};
+
+const submitOrder = () => {
+    orderForm.table_id = selectedTable.value?.id;
+    orderForm.items = cart.value.map((item) => ({
+        menu_id: item.menu_id,
+        quantity: item.quantity,
+        notes: item.notes,
+    }));
+
+    orderForm.post(route('staff.orders.store'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            cart.value = [];
+            selectedTable.value = null;
+            mode.value = 'tables';
+        },
+    });
+};
+
+const moveTable = () => {
+    moveForm.current_table_id = selectedTable.value?.id;
+    moveForm.target_table_id = moveTargetId.value;
+
+    moveForm.post(route('staff.tables.move'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            moveTargetId.value = '';
+            selectedTable.value = null;
+            mode.value = 'tables';
+        },
+    });
+};
+
+const checkout = () => {
+    checkoutForm.table_id = selectedTable.value?.id;
+
+    checkoutForm.post(route('staff.checkout'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            selectedTable.value = null;
+            mode.value = 'tables';
+        },
+    });
+};
+
+const closePanel = () => {
+    selectedTable.value = null;
+    cart.value = [];
+    moveTargetId.value = '';
+    mode.value = 'tables';
+    orderForm.clearErrors();
+    moveForm.clearErrors();
+    checkoutForm.clearErrors();
+};
 </script>
 
 <template>
-    <Head title="Staff Dashboard" />
+    <Head title="POS" />
 
-    <div class="min-h-screen bg-gray-100">
-        <!-- Header -->
-        <header class="bg-white shadow">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-                <h1 class="text-2xl font-bold text-gray-900">Staff Dashboard</h1>
+    <div class="min-h-screen bg-slate-100">
+        <header class="sticky top-0 z-20 border-b border-slate-200 bg-white">
+            <div class="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3 sm:px-6">
+                <div>
+                    <p class="text-xs font-semibold uppercase text-slate-500">POS</p>
+                    <h1 class="text-xl font-bold text-slate-950">{{ branch?.name || 'Chi nhánh' }}</h1>
+                </div>
+
                 <Link
                     :href="route('staff.logout')"
                     method="post"
                     as="button"
-                    class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition"
+                    class="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
                 >
-                    Logout
+                    Đăng xuất
                 </Link>
             </div>
         </header>
 
-        <!-- Main Content -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="bg-white shadow rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-900 mb-4">Welcome to Staff Dashboard</h2>
-                <p class="text-gray-600">This is the staff dashboard for managing orders and tables.</p>
-                
-                <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
-                        <h3 class="text-lg font-medium text-blue-900">Take Order</h3>
-                        <p class="mt-2 text-blue-700">Create new customer orders</p>
+        <main class="mx-auto grid max-w-[1600px] gap-4 px-4 py-4 lg:grid-cols-[minmax(280px,0.95fr)_minmax(420px,1.45fr)_minmax(360px,0.9fr)]">
+            <section class="min-h-[calc(100vh-104px)] rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-950">Sơ đồ bàn</h2>
+                        <p class="text-sm text-slate-500">{{ tables.length }} bàn đang quản lý</p>
                     </div>
-                    
-                    <div class="bg-green-50 p-6 rounded-lg border border-green-200">
-                        <h3 class="text-lg font-medium text-green-900">View Orders</h3>
-                        <p class="mt-2 text-green-700">View and manage active orders</p>
-                    </div>
-                    
-                    <div class="bg-purple-50 p-6 rounded-lg border border-purple-200">
-                        <h3 class="text-lg font-medium text-purple-900">Table Status</h3>
-                        <p class="mt-2 text-purple-700">Check table availability</p>
-                    </div>
-                    
-                    <div class="bg-orange-50 p-6 rounded-lg border border-orange-200">
-                        <h3 class="text-lg font-medium text-orange-900">Menu</h3>
-                        <p class="mt-2 text-orange-700">View menu items</p>
+                    <button
+                        type="button"
+                        @click="closePanel"
+                        class="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                        Làm mới chọn
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+                    <button
+                        v-for="table in tables"
+                        :key="table.id"
+                        type="button"
+                        @click="selectTable(table)"
+                        class="aspect-[1.15/1] rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md"
+                        :class="[
+                            table.status === 'empty'
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-950'
+                                : 'border-rose-200 bg-rose-50 text-rose-950',
+                            selectedTable?.id === table.id ? 'ring-2 ring-slate-900' : ''
+                        ]"
+                    >
+                        <div class="flex h-full flex-col justify-between">
+                            <div>
+                                <div class="text-lg font-bold">{{ table.name }}</div>
+                                <div class="text-xs font-medium opacity-75">{{ table.capacity }} chỗ</div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-semibold">
+                                    {{ table.status === 'empty' ? 'Trống' : 'Đang có khách' }}
+                                </div>
+                                <div v-if="table.active_order" class="mt-1 truncate text-xs opacity-80">
+                                    {{ table.active_order.order_code }}
+                                </div>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+            </section>
+
+            <section class="min-h-[calc(100vh-104px)] rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="mb-4 flex flex-wrap gap-2">
+                    <button
+                        v-for="tab in tabs"
+                        :key="tab.key"
+                        type="button"
+                        @click="selectedCategory = tab.key"
+                        class="rounded-md border px-3 py-2 text-sm font-semibold transition"
+                        :class="selectedCategory === tab.key ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 text-slate-700 hover:bg-slate-50'"
+                    >
+                        {{ tab.label }}
+                    </button>
+                </div>
+
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <button
+                        v-for="menu in filteredMenus"
+                        :key="menu.id"
+                        type="button"
+                        @click="addMenu(menu)"
+                        class="min-h-36 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-400 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="!selectedTable || selectedTable.status !== 'empty'"
+                    >
+                        <div class="flex h-full flex-col justify-between gap-3">
+                            <div>
+                                <div class="flex items-start justify-between gap-2">
+                                    <h3 class="font-bold text-slate-950">{{ menu.name }}</h3>
+                                    <span class="whitespace-nowrap text-sm font-bold text-emerald-700">{{ formatPrice(menu.price) }}</span>
+                                </div>
+                                <p class="mt-1 line-clamp-2 text-sm text-slate-500">{{ menu.description || menu.category?.name || 'Món ăn' }}</p>
+                            </div>
+                            <div class="flex flex-wrap gap-1">
+                                <span v-if="menu.is_best_seller" class="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Best Seller</span>
+                                <span v-if="menu.is_must_try" class="rounded bg-cyan-100 px-2 py-1 text-xs font-semibold text-cyan-800">Must Try</span>
+                            </div>
+                        </div>
+                    </button>
+
+                    <div v-if="filteredMenus.length === 0" class="col-span-full rounded-lg border border-dashed border-slate-300 p-8 text-center text-slate-500">
+                        Chưa có món phù hợp.
                     </div>
                 </div>
-            </div>
+            </section>
+
+            <aside class="min-h-[calc(100vh-104px)] rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div v-if="!selectedTable" class="flex h-full items-center justify-center text-center">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-950">Chọn bàn để bắt đầu</h2>
+                        <p class="mt-2 text-sm text-slate-500">Bàn trống sẽ mở giỏ gọi món, bàn đang có khách sẽ mở hóa đơn.</p>
+                    </div>
+                </div>
+
+                <div v-else-if="mode === 'order'">
+                    <div class="mb-4 flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-semibold text-emerald-700">Gọi món</p>
+                            <h2 class="text-xl font-bold text-slate-950">{{ selectedTable.name }}</h2>
+                        </div>
+                        <button type="button" @click="closePanel" class="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                            Đóng
+                        </button>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div
+                            v-for="item in cart"
+                            :key="item.menu_id"
+                            class="rounded-lg border border-slate-200 p-3"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="font-bold text-slate-950">{{ item.name }}</h3>
+                                    <p class="text-sm text-slate-500">{{ formatPrice(item.price) }}</p>
+                                </div>
+                                <button type="button" @click="removeItem(item)" class="text-sm font-semibold text-rose-600 hover:text-rose-700">
+                                    Xóa
+                                </button>
+                            </div>
+
+                            <div class="mt-3 flex items-center justify-between">
+                                <div class="flex items-center rounded-md border border-slate-300">
+                                    <button type="button" @click="decrease(item)" class="h-9 w-9 text-lg font-bold text-slate-700">-</button>
+                                    <div class="w-10 text-center font-bold">{{ item.quantity }}</div>
+                                    <button type="button" @click="increase(item)" class="h-9 w-9 text-lg font-bold text-slate-700">+</button>
+                                </div>
+                                <div class="font-bold text-slate-950">{{ formatPrice(item.price * item.quantity) }}</div>
+                            </div>
+
+                            <input
+                                v-model="item.notes"
+                                type="text"
+                                class="mt-3 w-full rounded-md border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
+                                placeholder="Ghi chú món"
+                            />
+                        </div>
+
+                        <div v-if="cart.length === 0" class="rounded-lg border border-dashed border-slate-300 p-8 text-center text-slate-500">
+                            Chọn món từ danh sách bên cạnh.
+                        </div>
+                    </div>
+
+                    <div class="mt-4 border-t border-slate-200 pt-4">
+                        <div class="mb-3 flex items-center justify-between text-lg font-bold">
+                            <span>Tổng tạm tính</span>
+                            <span>{{ formatPrice(cartTotal) }}</span>
+                        </div>
+                        <div v-if="orderForm.errors.items" class="mb-3 rounded-md bg-rose-50 p-3 text-sm font-semibold text-rose-700">{{ orderForm.errors.items }}</div>
+                        <div v-if="orderForm.errors.table_id" class="mb-3 rounded-md bg-rose-50 p-3 text-sm font-semibold text-rose-700">{{ orderForm.errors.table_id }}</div>
+                        <button
+                            type="button"
+                            @click="submitOrder"
+                            :disabled="cart.length === 0 || orderForm.processing"
+                            class="w-full rounded-md bg-emerald-600 px-4 py-3 font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Gửi bếp
+                        </button>
+                    </div>
+                </div>
+
+                <div v-else>
+                    <div class="mb-4 flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-semibold text-rose-700">Hóa đơn hiện tại</p>
+                            <h2 class="text-xl font-bold text-slate-950">{{ selectedTable.name }}</h2>
+                            <p class="text-sm text-slate-500">{{ selectedTable.active_order?.order_code }}</p>
+                        </div>
+                        <button type="button" @click="closePanel" class="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                            Đóng
+                        </button>
+                    </div>
+
+                    <div v-if="selectedTable.active_order" class="space-y-3">
+                        <div
+                            v-for="item in selectedTable.active_order.items"
+                            :key="item.id"
+                            class="rounded-lg border border-slate-200 p-3"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="font-bold text-slate-950">{{ item.menu_name }}</h3>
+                                    <p class="text-sm text-slate-500">x{{ item.quantity }} · {{ item.status }}</p>
+                                    <p v-if="item.notes" class="mt-1 text-sm text-slate-500">{{ item.notes }}</p>
+                                </div>
+                                <div class="font-bold text-slate-950">{{ formatPrice(item.price * item.quantity) }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else class="rounded-lg border border-dashed border-slate-300 p-6 text-center text-slate-500">
+                        Chưa tìm thấy hóa đơn đang hoạt động.
+                    </div>
+
+                    <div class="mt-5 rounded-lg bg-slate-50 p-4">
+                        <label class="mb-2 block text-sm font-bold text-slate-700">Chuyển sang bàn trống</label>
+                        <div class="flex gap-2">
+                            <select
+                                v-model="moveTargetId"
+                                class="min-w-0 flex-1 rounded-md border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
+                            >
+                                <option value="">Chọn bàn</option>
+                                <option v-for="table in emptyTables" :key="table.id" :value="table.id">
+                                    {{ table.name }}
+                                </option>
+                            </select>
+                            <button
+                                type="button"
+                                @click="moveTable"
+                                :disabled="!moveTargetId || moveForm.processing"
+                                class="rounded-md bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Chuyển
+                            </button>
+                        </div>
+                        <div v-if="moveForm.errors.target_table_id" class="mt-2 text-sm font-semibold text-rose-700">{{ moveForm.errors.target_table_id }}</div>
+                        <div v-if="moveForm.errors.current_table_id" class="mt-2 text-sm font-semibold text-rose-700">{{ moveForm.errors.current_table_id }}</div>
+                    </div>
+
+                    <div class="mt-4 border-t border-slate-200 pt-4">
+                        <div class="mb-3 flex items-center justify-between text-lg font-bold">
+                            <span>Tổng thanh toán</span>
+                            <span>{{ formatPrice(selectedOrderTotal) }}</span>
+                        </div>
+                        <div v-if="checkoutForm.errors.table_id" class="mb-3 rounded-md bg-rose-50 p-3 text-sm font-semibold text-rose-700">{{ checkoutForm.errors.table_id }}</div>
+                        <button
+                            type="button"
+                            @click="checkout"
+                            :disabled="!selectedTable.active_order || checkoutForm.processing"
+                            class="w-full rounded-md bg-rose-600 px-4 py-3 font-bold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Thanh toán
+                        </button>
+                    </div>
+                </div>
+            </aside>
         </main>
     </div>
 </template>

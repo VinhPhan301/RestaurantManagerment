@@ -6,6 +6,7 @@ use App\Http\Controllers\MenuController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StaffAuthController;
+use App\Http\Controllers\StaffPosController;
 use App\Http\Controllers\TableController;
 use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
@@ -68,9 +69,10 @@ Route::prefix('staff')->name('staff.')->group(function () {
     });
 
     Route::middleware(['auth', 'role:manager,staff'])->group(function () {
-        Route::get('/dashboard', function () {
-            return Inertia::render('Staff/Dashboard');
-        })->name('dashboard');
+        Route::get('/dashboard', [StaffPosController::class, 'dashboard'])->name('dashboard');
+        Route::post('/orders', [StaffPosController::class, 'storeOrder'])->name('orders.store');
+        Route::post('/tables/move', [StaffPosController::class, 'moveTable'])->name('tables.move');
+        Route::post('/checkout', [StaffPosController::class, 'checkout'])->name('checkout');
 
         Route::post('/logout', [StaffAuthController::class, 'destroy'])->name('logout');
     });
