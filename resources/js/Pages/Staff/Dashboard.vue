@@ -268,8 +268,8 @@ const closePanel = () => {
                 </div>
             </section>
 
-            <section class="min-h-[calc(100vh-104px)] rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                <div class="mb-4 flex flex-wrap gap-2">
+            <section class="flex h-[calc(100vh-104px)] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="mb-4 flex shrink-0 flex-wrap gap-2">
                     <button
                         v-for="tab in tabs"
                         :key="tab.key"
@@ -282,7 +282,7 @@ const closePanel = () => {
                     </button>
                 </div>
 
-                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div class="grid min-h-0 flex-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
                     <button
                         v-for="menu in filteredMenus"
                         :key="menu.id"
@@ -312,7 +312,7 @@ const closePanel = () => {
                 </div>
             </section>
 
-            <aside class="min-h-[calc(100vh-104px)] rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <aside class="flex h-[calc(100vh-104px)] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div v-if="!selectedTable" class="flex h-full items-center justify-center text-center">
                     <div>
                         <h2 class="text-lg font-bold text-slate-950">Chọn bàn để bắt đầu</h2>
@@ -320,8 +320,8 @@ const closePanel = () => {
                     </div>
                 </div>
 
-                <div v-else-if="mode === 'order'">
-                    <div class="mb-4 flex items-start justify-between gap-3">
+                <div v-else-if="mode === 'order'" class="flex h-full min-h-0 flex-col">
+                    <div class="mb-4 flex shrink-0 items-start justify-between gap-3">
                         <div>
                             <p class="text-sm font-semibold text-emerald-700">Gọi món</p>
                             <h2 class="text-xl font-bold text-slate-950">{{ selectedTable.name }}</h2>
@@ -331,7 +331,7 @@ const closePanel = () => {
                         </button>
                     </div>
 
-                    <div class="space-y-3">
+                    <div class="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                         <div
                             v-for="item in cart"
                             :key="item.menu_id"
@@ -369,7 +369,7 @@ const closePanel = () => {
                         </div>
                     </div>
 
-                    <div class="mt-4 border-t border-slate-200 pt-4">
+                    <div class="mt-4 shrink-0 border-t border-slate-200 pt-4">
                         <div class="mb-3 flex items-center justify-between text-lg font-bold">
                             <span>Tổng tạm tính</span>
                             <span>{{ formatPrice(cartTotal) }}</span>
@@ -387,8 +387,8 @@ const closePanel = () => {
                     </div>
                 </div>
 
-                <div v-else>
-                    <div class="mb-4 flex items-start justify-between gap-3">
+                <div v-else class="flex h-full min-h-0 flex-col">
+                    <div class="mb-4 flex shrink-0 items-start justify-between gap-3">
                         <div>
                             <p class="text-sm font-semibold text-rose-700">Hóa đơn hiện tại</p>
                             <h2 class="text-xl font-bold text-slate-950">{{ selectedTable.name }}</h2>
@@ -399,28 +399,30 @@ const closePanel = () => {
                         </button>
                     </div>
 
-                    <div v-if="selectedTable.active_order" class="space-y-3">
-                        <div
-                            v-for="item in selectedTable.active_order.items"
-                            :key="item.id"
-                            class="rounded-lg border border-slate-200 p-3"
-                        >
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <h3 class="font-bold text-slate-950">{{ item.menu_name }}</h3>
-                                    <p class="text-sm text-slate-500">x{{ item.quantity }} · {{ item.status }}</p>
-                                    <p v-if="item.notes" class="mt-1 text-sm text-slate-500">{{ item.notes }}</p>
+                    <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+                        <div v-if="selectedTable.active_order" class="space-y-3">
+                            <div
+                                v-for="item in selectedTable.active_order.items"
+                                :key="item.id"
+                                class="rounded-lg border border-slate-200 p-3"
+                            >
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="font-bold text-slate-950">{{ item.menu_name }}</h3>
+                                        <p class="text-sm text-slate-500">x{{ item.quantity }} · {{ item.status }}</p>
+                                        <p v-if="item.notes" class="mt-1 text-sm text-slate-500">{{ item.notes }}</p>
+                                    </div>
+                                    <div class="font-bold text-slate-950">{{ formatPrice(item.price * item.quantity) }}</div>
                                 </div>
-                                <div class="font-bold text-slate-950">{{ formatPrice(item.price * item.quantity) }}</div>
                             </div>
+                        </div>
+
+                        <div v-else class="rounded-lg border border-dashed border-slate-300 p-6 text-center text-slate-500">
+                            Chưa tìm thấy hóa đơn đang hoạt động.
                         </div>
                     </div>
 
-                    <div v-else class="rounded-lg border border-dashed border-slate-300 p-6 text-center text-slate-500">
-                        Chưa tìm thấy hóa đơn đang hoạt động.
-                    </div>
-
-                    <div class="mt-5 rounded-lg bg-slate-50 p-4">
+                    <div class="mt-4 shrink-0 rounded-lg bg-slate-50 p-4">
                         <label class="mb-2 block text-sm font-bold text-slate-700">Chuyển sang bàn trống</label>
                         <div class="flex gap-2">
                             <select
@@ -445,7 +447,7 @@ const closePanel = () => {
                         <div v-if="moveForm.errors.current_table_id" class="mt-2 text-sm font-semibold text-rose-700">{{ moveForm.errors.current_table_id }}</div>
                     </div>
 
-                    <div class="mt-4 border-t border-slate-200 pt-4">
+                    <div class="mt-4 shrink-0 border-t border-slate-200 pt-4">
                         <div class="mb-3 flex items-center justify-between text-lg font-bold">
                             <span>Tổng thanh toán</span>
                             <span>{{ formatPrice(selectedOrderTotal) }}</span>

@@ -13,6 +13,7 @@ const statusForm = useForm({
 
 const orderedItems = computed(() => props.items.filter((item) => item.status === 'ordered'));
 const cookingItems = computed(() => props.items.filter((item) => item.status === 'cooking'));
+const readyItems = computed(() => props.items.filter((item) => item.status === 'ready'));
 
 const elapsedMinutes = (createdAt) => {
     if (!createdAt) {
@@ -41,7 +42,43 @@ const statusLabel = (status) => {
         return 'Đang làm';
     }
 
+    if (status === 'ready') {
+        return 'Chờ phục vụ';
+    }
+
     return status;
+};
+
+const itemCardClass = (status) => {
+    if (status === 'ordered') {
+        return 'border-amber-300 bg-white';
+    }
+
+    if (status === 'cooking') {
+        return 'border-sky-300 bg-white';
+    }
+
+    if (status === 'ready') {
+        return 'border-rose-300 bg-rose-100 text-rose-950';
+    }
+
+    return 'border-zinc-200 bg-white';
+};
+
+const statusBadgeClass = (status) => {
+    if (status === 'ordered') {
+        return 'bg-amber-100 text-amber-800';
+    }
+
+    if (status === 'cooking') {
+        return 'bg-sky-100 text-sky-800';
+    }
+
+    if (status === 'ready') {
+        return 'bg-white text-rose-700';
+    }
+
+    return 'bg-zinc-100 text-zinc-800';
 };
 </script>
 
@@ -76,7 +113,7 @@ const statusLabel = (status) => {
         </header>
 
         <main class="mx-auto max-w-[1600px] px-4 py-4 sm:px-6">
-            <div class="mb-4 grid gap-3 sm:grid-cols-3">
+            <div class="mb-4 grid gap-3 sm:grid-cols-4">
                 <div class="rounded-lg border border-zinc-200 bg-white p-4">
                     <div class="text-sm font-semibold text-zinc-500">Đang chờ</div>
                     <div class="mt-1 text-3xl font-bold text-amber-700">{{ orderedItems.length }}</div>
@@ -84,6 +121,10 @@ const statusLabel = (status) => {
                 <div class="rounded-lg border border-zinc-200 bg-white p-4">
                     <div class="text-sm font-semibold text-zinc-500">Đang làm</div>
                     <div class="mt-1 text-3xl font-bold text-sky-700">{{ cookingItems.length }}</div>
+                </div>
+                <div class="rounded-lg border border-rose-200 bg-rose-50 p-4">
+                    <div class="text-sm font-semibold text-rose-700">Chờ phục vụ</div>
+                    <div class="mt-1 text-3xl font-bold text-rose-700">{{ readyItems.length }}</div>
                 </div>
                 <div class="rounded-lg border border-zinc-200 bg-white p-4">
                     <div class="text-sm font-semibold text-zinc-500">Tổng món trên bếp</div>
@@ -106,51 +147,51 @@ const statusLabel = (status) => {
                 <article
                     v-for="item in items"
                     :key="item.id"
-                    class="flex min-h-64 flex-col justify-between rounded-lg border bg-white p-4 shadow-sm"
-                    :class="item.status === 'ordered' ? 'border-amber-300' : 'border-sky-300'"
+                    class="flex min-h-64 flex-col justify-between rounded-lg border p-4 shadow-sm"
+                    :class="itemCardClass(item.status)"
                 >
                     <div>
                         <div class="mb-3 flex items-start justify-between gap-3">
                             <div>
                                 <div class="text-sm font-bold text-zinc-500">{{ item.order_code }}</div>
-                                <h2 class="mt-1 text-2xl font-black text-zinc-950">{{ item.menu_name }}</h2>
+                                <h2 class="mt-1 text-3xl font-black leading-tight" :class="item.status === 'ready' ? 'text-rose-950' : 'text-zinc-950'">{{ item.menu_name }}</h2>
                             </div>
                             <span
                                 class="rounded-md px-2.5 py-1 text-xs font-bold"
-                                :class="item.status === 'ordered' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'"
+                                :class="statusBadgeClass(item.status)"
                             >
                                 {{ statusLabel(item.status) }}
                             </span>
                         </div>
 
-                        <div class="grid grid-cols-3 gap-2 text-center">
-                            <div class="rounded-md bg-zinc-100 p-3">
-                                <div class="text-xs font-semibold text-zinc-500">Bàn</div>
-                                <div class="mt-1 text-lg font-black text-zinc-950">{{ item.table_name }}</div>
+                        <div class="grid grid-cols-[1.2fr_1fr_0.8fr] gap-2 text-center">
+                            <div class="rounded-md p-3 text-white" :class="item.status === 'ready' ? 'bg-rose-800' : 'bg-zinc-900'">
+                                <div class="text-xs font-bold uppercase text-zinc-300">Bàn</div>
+                                <div class="mt-1 text-3xl font-black leading-none">{{ item.table_name }}</div>
                             </div>
-                            <div class="rounded-md bg-zinc-100 p-3">
-                                <div class="text-xs font-semibold text-zinc-500">SL</div>
-                                <div class="mt-1 text-lg font-black text-zinc-950">x{{ item.quantity }}</div>
+                            <div class="rounded-md p-3 text-white" :class="item.status === 'ready' ? 'bg-rose-800' : 'bg-zinc-900'">
+                                <div class="text-xs font-bold uppercase text-zinc-300">SL</div>
+                                <div class="mt-1 text-3xl font-black leading-none">x{{ item.quantity }}</div>
                             </div>
-                            <div class="rounded-md bg-zinc-100 p-3">
-                                <div class="text-xs font-semibold text-zinc-500">Phút</div>
-                                <div class="mt-1 text-lg font-black text-zinc-950">{{ elapsedMinutes(item.created_at) }}</div>
+                            <div class="rounded-md p-3" :class="item.status === 'ready' ? 'bg-white text-rose-800' : 'bg-zinc-100'">
+                                <div class="text-xs font-bold uppercase" :class="item.status === 'ready' ? 'text-rose-600' : 'text-zinc-500'">Phút</div>
+                                <div class="mt-1 text-2xl font-black" :class="item.status === 'ready' ? 'text-rose-950' : 'text-zinc-950'">{{ elapsedMinutes(item.created_at) }}</div>
                             </div>
                         </div>
 
-                        <div class="mt-3 rounded-md border border-zinc-200 p-3">
-                            <div class="text-xs font-bold uppercase text-zinc-500">Ghi chú</div>
-                            <p class="mt-1 min-h-10 text-base font-semibold text-zinc-900">
+                        <div class="mt-3 rounded-md border p-3" :class="item.status === 'ready' ? 'border-rose-300 bg-white' : 'border-zinc-200'">
+                            <div class="text-xs font-bold uppercase" :class="item.status === 'ready' ? 'text-rose-600' : 'text-zinc-500'">Ghi chú</div>
+                            <p class="mt-1 min-h-10 text-base font-semibold" :class="item.status === 'ready' ? 'text-rose-950' : 'text-zinc-900'">
                                 {{ item.notes || 'Không có ghi chú' }}
                             </p>
                         </div>
 
-                        <div class="mt-3 text-sm font-semibold text-zinc-500">
+                        <div class="mt-3 text-sm font-semibold" :class="item.status === 'ready' ? 'text-rose-700' : 'text-zinc-500'">
                             Gọi lúc {{ item.created_at_label }}
                         </div>
                     </div>
 
-                    <div class="mt-4 grid grid-cols-2 gap-2">
+                    <div class="mt-4 grid grid-cols-3 gap-2">
                         <button
                             type="button"
                             @click="updateStatus(item, 'cooking')"
@@ -166,6 +207,14 @@ const statusLabel = (status) => {
                             class="rounded-md bg-emerald-600 px-4 py-3 font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500"
                         >
                             Hoàn thành
+                        </button>
+                        <button
+                            type="button"
+                            @click="updateStatus(item, 'served')"
+                            :disabled="item.status !== 'ready' || statusForm.processing"
+                            class="rounded-md bg-rose-800 px-4 py-3 font-bold text-white transition hover:bg-rose-950 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500"
+                        >
+                            Đã phục vụ
                         </button>
                     </div>
                 </article>

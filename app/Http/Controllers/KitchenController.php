@@ -16,7 +16,7 @@ class KitchenController extends Controller
         $branchId = $this->staffBranchId($request);
 
         $items = OrderItem::query()
-            ->whereIn('status', ['ordered', 'cooking'])
+            ->whereIn('status', ['ordered', 'cooking', 'ready'])
             ->whereHas('order', function ($query) use ($branchId) {
                 $query
                     ->where('branch_id', $branchId)
@@ -49,7 +49,7 @@ class KitchenController extends Controller
         $branchId = $this->staffBranchId($request);
 
         $validated = $request->validate([
-            'status' => ['required', 'in:cooking,ready'],
+            'status' => ['required', 'in:cooking,ready,served'],
         ]);
 
         $orderItem->load('order');
@@ -72,6 +72,7 @@ class KitchenController extends Controller
         $allowed = [
             'ordered' => ['cooking'],
             'cooking' => ['ready'],
+            'ready' => ['served'],
         ];
 
         if (! in_array($nextStatus, $allowed[$orderItem->status] ?? [], true)) {
