@@ -73,18 +73,28 @@ class DatabaseSeeder extends Seeder
             Category::create($category);
         }
 
-        // Tạo khoảng 10 món ăn mẫu phân bổ đều vào các danh mục
+        $categoryIds = Category::pluck('id', 'name');
+
+        // Tạo món ăn mẫu phân bổ đều vào các danh mục
         $menuItems = [
-            ['category_id' => 1, 'name' => 'Phở Bò Đặc Biệt', 'description' => 'Phở bò tươi với nước dùng đậm đà', 'price' => 85000, 'is_available' => true, 'is_best_seller' => true, 'is_must_try' => false],
-            ['category_id' => 1, 'name' => 'Bún Chả Hà Nội', 'description' => 'Bún chả thịt nướng than hoa', 'price' => 75000, 'is_available' => true, 'is_best_seller' => true, 'is_must_try' => false],
-            ['category_id' => 2, 'name' => 'Gỏi Cuốn Tôm Thịt', 'description' => 'Gỏi cuốn tươi ngon', 'price' => 45000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => true],
-            ['category_id' => 2, 'name' => 'Chả Giò Rế', 'description' => 'Chả giò rế giòn rụm', 'price' => 40000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => true],
-            ['category_id' => 3, 'name' => 'Nem Rán', 'description' => 'Nem rán truyền thống', 'price' => 35000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
-            ['category_id' => 3, 'name' => 'Salad Bò', 'description' => 'Salad bò tươi mát', 'price' => 55000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
-            ['category_id' => 4, 'name' => 'Cơm Tấm Sườn Bì', 'description' => 'Cơm tấm sườn bì chả', 'price' => 65000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
-            ['category_id' => 4, 'name' => 'Bún Đậu Mắm Tôm', 'description' => 'Bún đậu mắm tôm truyền thống', 'price' => 50000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
-            ['category_id' => 5, 'name' => 'Trà Sen Vàng', 'description' => 'Trà sen vàng thơm ngon', 'price' => 25000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
-            ['category_id' => 5, 'name' => 'Sinh Tố Bơ', 'description' => 'Sinh tố bơ creamy', 'price' => 35000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Best Seller'], 'name' => 'Phở Bò Đặc Biệt', 'description' => 'Phở bò tươi với nước dùng đậm đà', 'price' => 85000, 'is_available' => true, 'is_best_seller' => true, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Best Seller'], 'name' => 'Bún Chả Hà Nội', 'description' => 'Bún chả thịt nướng than hoa', 'price' => 75000, 'is_available' => true, 'is_best_seller' => true, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Must Try'], 'name' => 'Gỏi Cuốn Tôm Thịt', 'description' => 'Gỏi cuốn tươi ngon', 'price' => 45000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => true],
+            ['category_id' => $categoryIds['Must Try'], 'name' => 'Chả Giò Rế', 'description' => 'Chả giò rế giòn rụm', 'price' => 40000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => true],
+            ['category_id' => $categoryIds['Khai vị'], 'name' => 'Nem Rán', 'description' => 'Nem rán truyền thống', 'price' => 35000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Khai vị'], 'name' => 'Salad Bò', 'description' => 'Salad bò tươi mát', 'price' => 55000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Món chính'], 'name' => 'Cơm Tấm Sườn Bì', 'description' => 'Cơm tấm sườn bì chả', 'price' => 65000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Món chính'], 'name' => 'Bún Đậu Mắm Tôm', 'description' => 'Bún đậu mắm tôm truyền thống', 'price' => 50000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Tráng miệng'], 'name' => 'Chè Khúc Bạch', 'description' => 'Chè khúc bạch thanh mát với nhãn và hạnh nhân', 'price' => 30000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => true],
+            ['category_id' => $categoryIds['Tráng miệng'], 'name' => 'Bánh Flan Caramel', 'description' => 'Bánh flan mềm mịn phủ caramel', 'price' => 25000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Tráng miệng'], 'name' => 'Sữa Chua Nếp Cẩm', 'description' => 'Sữa chua ăn kèm nếp cẩm dẻo thơm', 'price' => 28000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Tráng miệng'], 'name' => 'Rau Câu Dừa', 'description' => 'Rau câu dừa mát lạnh', 'price' => 22000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Đồ uống'], 'name' => 'Trà Sen Vàng', 'description' => 'Trà sen vàng thơm ngon', 'price' => 25000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Đồ uống'], 'name' => 'Sinh Tố Bơ', 'description' => 'Sinh tố bơ creamy', 'price' => 35000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Đồ uống'], 'name' => 'Nước Ép Cam', 'description' => 'Cam tươi ép nguyên chất', 'price' => 30000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Đồ uống'], 'name' => 'Cà Phê Sữa Đá', 'description' => 'Cà phê phin pha sữa đặc', 'price' => 28000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => true],
+            ['category_id' => $categoryIds['Đồ uống'], 'name' => 'Chanh Sả Mật Ong', 'description' => 'Đồ uống thanh mát với chanh, sả và mật ong', 'price' => 32000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
+            ['category_id' => $categoryIds['Đồ uống'], 'name' => 'Nước Suối', 'description' => 'Nước suối đóng chai', 'price' => 12000, 'is_available' => true, 'is_best_seller' => false, 'is_must_try' => false],
         ];
 
         foreach ($menuItems as $item) {

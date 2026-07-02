@@ -201,14 +201,22 @@ const closePanel = () => {
                     <h1 class="text-xl font-bold text-slate-950">{{ branch?.name || 'Chi nhánh' }}</h1>
                 </div>
 
-                <Link
-                    :href="route('staff.logout')"
-                    method="post"
-                    as="button"
-                    class="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-                >
-                    Đăng xuất
-                </Link>
+                <div class="flex items-center gap-2">
+                    <Link
+                        :href="route('kitchen.index')"
+                        class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                        Màn bếp
+                    </Link>
+                    <Link
+                        :href="route('staff.logout')"
+                        method="post"
+                        as="button"
+                        class="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                    >
+                        Đăng xuất
+                    </Link>
+                </div>
             </div>
         </header>
 

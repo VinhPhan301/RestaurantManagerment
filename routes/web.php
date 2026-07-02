@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\BranchController;
+use App\Http\Controllers\KitchenController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProfileController;
@@ -37,6 +38,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+Route::middleware(['auth', 'role:manager,staff'])->group(function () {
+    Route::get('/kitchen', [KitchenController::class, 'index'])->name('kitchen.index');
+    Route::patch('/kitchen/items/{orderItem}/status', [KitchenController::class, 'updateItemStatus'])->name('kitchen.items.status');
 });
 
 // Admin Routes
