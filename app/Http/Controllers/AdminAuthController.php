@@ -30,8 +30,8 @@ class AdminAuthController extends Controller
 
         $request->session()->regenerate();
 
-        // Check if user has admin role
-        if (Auth::user()->role !== 'admin') {
+        // Check if user has admin workspace access.
+        if (! in_array(Auth::user()->role, ['admin', 'manager'])) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

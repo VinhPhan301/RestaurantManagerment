@@ -14,6 +14,7 @@ const selectedCategory = ref('all');
 const mode = ref('tables');
 const cart = ref([]);
 const moveTargetId = ref('');
+const isAddingItems = ref(false);
 
 const orderForm = useForm({
     table_id: null,
@@ -74,6 +75,14 @@ const selectedOrderTotal = computed(() => {
     return selectedTable.value.active_order.items.reduce((total, item) => total + item.price * item.quantity, 0);
 });
 
+const readyItemsCount = computed(() => {
+    if (!selectedTable.value?.active_order) {
+        return 0;
+    }
+
+    return selectedTable.value.active_order.items.filter((item) => item.status === 'ready').length;
+});
+
 const formatPrice = (price) => new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency: 'VND',
@@ -88,17 +97,21 @@ const selectTable = (table) => {
 
     if (table.status === 'empty') {
         mode.value = 'order';
+        isAddingItems.value = false;
         cart.value = [];
         orderForm.table_id = table.id;
     } else {
         mode.value = 'checkout';
+        isAddingItems.value = false;
+        cart.value = [];
         checkoutForm.table_id = table.id;
         moveForm.current_table_id = table.id;
+        orderForm.table_id = table.id;
     }
 };
 
 const addMenu = (menu) => {
-    if (!selectedTable.value || selectedTable.value.status !== 'empty') {
+    if (!selectedTable.value || (selectedTable.value.status !== 'empty' && !isAddingItems.value)) {
         return;
     }
 
@@ -147,6 +160,7 @@ const submitOrder = () => {
         preserveScroll: true,
         onSuccess: () => {
             cart.value = [];
+            isAddingItems.value = false;
             selectedTable.value = null;
             mode.value = 'tables';
         },
@@ -183,10 +197,46 @@ const closePanel = () => {
     selectedTable.value = null;
     cart.value = [];
     moveTargetId.value = '';
+    isAddingItems.value = false;
     mode.value = 'tables';
     orderForm.clearErrors();
     moveForm.clearErrors();
     checkoutForm.clearErrors();
+};
+
+const startAddItems = () => {
+    cart.value = [];
+    orderForm.table_id = selectedTable.value?.id;
+    orderForm.clearErrors();
+    isAddingItems.value = true;
+};
+
+const cancelAddItems = () => {
+    cart.value = [];
+    isAddingItems.value = false;
+    orderForm.clearErrors();
+};
+
+const statusText = (status) => {
+    const labels = {
+        ordered: 'Mới gọi',
+        cooking: 'Đang làm',
+        ready: 'Chờ phục vụ',
+        served: 'Đã phục vụ',
+    };
+
+    return labels[status] || status;
+};
+
+const statusClass = (status) => {
+    const classes = {
+        ordered: 'bg-amber-100 text-amber-800',
+        cooking: 'bg-sky-100 text-sky-800',
+        ready: 'bg-rose-100 text-rose-800 ring-1 ring-rose-300',
+        served: 'bg-emerald-100 text-emerald-800',
+    };
+
+    return classes[status] || 'bg-slate-100 text-slate-700';
 };
 </script>
 
@@ -282,22 +332,22 @@ const closePanel = () => {
                     </button>
                 </div>
 
-                <div class="grid min-h-0 flex-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
+                <div class="grid min-h-0 flex-1 auto-rows-min content-start items-start gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
                     <button
                         v-for="menu in filteredMenus"
                         :key="menu.id"
                         type="button"
                         @click="addMenu(menu)"
-                        class="min-h-36 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-400 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
-                        :disabled="!selectedTable || selectedTable.status !== 'empty'"
+                        class="rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-400 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="!selectedTable || (selectedTable.status !== 'empty' && !isAddingItems)"
                     >
-                        <div class="flex h-full flex-col justify-between gap-3">
+                        <div class="space-y-2">
                             <div>
                                 <div class="flex items-start justify-between gap-2">
                                     <h3 class="font-bold text-slate-950">{{ menu.name }}</h3>
                                     <span class="whitespace-nowrap text-sm font-bold text-emerald-700">{{ formatPrice(menu.price) }}</span>
                                 </div>
-                                <p class="mt-1 line-clamp-2 text-sm text-slate-500">{{ menu.description || menu.category?.name || 'Món ăn' }}</p>
+                                <p class="mt-1 line-clamp-1 text-sm text-slate-500">{{ menu.description || menu.category?.name || 'Món ăn' }}</p>
                             </div>
                             <div class="flex flex-wrap gap-1">
                                 <span v-if="menu.is_best_seller" class="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Best Seller</span>
@@ -393,6 +443,9 @@ const closePanel = () => {
                             <p class="text-sm font-semibold text-rose-700">Hóa đơn hiện tại</p>
                             <h2 class="text-xl font-bold text-slate-950">{{ selectedTable.name }}</h2>
                             <p class="text-sm text-slate-500">{{ selectedTable.active_order?.order_code }}</p>
+                            <p v-if="readyItemsCount > 0" class="mt-1 inline-flex rounded-md bg-rose-100 px-2 py-1 text-xs font-bold text-rose-700">
+                                {{ readyItemsCount }} món chờ phục vụ
+                            </p>
                         </div>
                         <button type="button" @click="closePanel" class="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                             Đóng
@@ -409,10 +462,15 @@ const closePanel = () => {
                                 <div class="flex items-start justify-between gap-3">
                                     <div>
                                         <h3 class="font-bold text-slate-950">{{ item.menu_name }}</h3>
-                                        <p class="text-sm text-slate-500">x{{ item.quantity }} · {{ item.status }}</p>
+                                        <p class="text-sm text-slate-500">x{{ item.quantity }}</p>
                                         <p v-if="item.notes" class="mt-1 text-sm text-slate-500">{{ item.notes }}</p>
                                     </div>
-                                    <div class="font-bold text-slate-950">{{ formatPrice(item.price * item.quantity) }}</div>
+                                    <div class="text-right">
+                                        <div class="font-bold text-slate-950">{{ formatPrice(item.price * item.quantity) }}</div>
+                                        <span class="mt-2 inline-flex rounded-full px-2 py-1 text-xs font-bold" :class="statusClass(item.status)">
+                                            {{ statusText(item.status) }}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -423,6 +481,73 @@ const closePanel = () => {
                     </div>
 
                     <div class="mt-4 shrink-0 rounded-lg bg-slate-50 p-4">
+                        <div v-if="!isAddingItems" class="mb-4">
+                            <button
+                                type="button"
+                                @click="startAddItems"
+                                class="w-full rounded-md bg-emerald-600 px-4 py-3 font-bold text-white transition hover:bg-emerald-700"
+                            >
+                                Gọi thêm món
+                            </button>
+                        </div>
+
+                        <div v-else class="mb-4 rounded-lg border border-emerald-200 bg-white p-3">
+                            <div class="mb-3 flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-bold text-emerald-700">Gọi thêm món</p>
+                                    <p class="text-xs text-slate-500">Chọn món ở danh sách giữa</p>
+                                </div>
+                                <button type="button" @click="cancelAddItems" class="text-sm font-semibold text-slate-600 hover:text-slate-900">
+                                    Hủy
+                                </button>
+                            </div>
+
+                            <div class="max-h-48 space-y-2 overflow-y-auto pr-1">
+                                <div
+                                    v-for="item in cart"
+                                    :key="item.menu_id"
+                                    class="rounded-md border border-slate-200 p-2"
+                                >
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <div class="truncate text-sm font-bold text-slate-950">{{ item.name }}</div>
+                                            <div class="text-xs text-slate-500">{{ formatPrice(item.price) }}</div>
+                                        </div>
+                                        <div class="flex items-center rounded-md border border-slate-300">
+                                            <button type="button" @click="decrease(item)" class="h-8 w-8 font-bold text-slate-700">-</button>
+                                            <div class="w-8 text-center text-sm font-bold">{{ item.quantity }}</div>
+                                            <button type="button" @click="increase(item)" class="h-8 w-8 font-bold text-slate-700">+</button>
+                                        </div>
+                                    </div>
+                                    <input
+                                        v-model="item.notes"
+                                        type="text"
+                                        class="mt-2 w-full rounded-md border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500"
+                                        placeholder="Ghi chú"
+                                    />
+                                </div>
+
+                                <div v-if="cart.length === 0" class="rounded-md border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
+                                    Chưa chọn món thêm.
+                                </div>
+                            </div>
+
+                            <div class="mt-3 flex items-center justify-between font-bold">
+                                <span>Thêm</span>
+                                <span>{{ formatPrice(cartTotal) }}</span>
+                            </div>
+                            <div v-if="orderForm.errors.items" class="mt-2 rounded-md bg-rose-50 p-2 text-xs font-semibold text-rose-700">{{ orderForm.errors.items }}</div>
+                            <div v-if="orderForm.errors.table_id" class="mt-2 rounded-md bg-rose-50 p-2 text-xs font-semibold text-rose-700">{{ orderForm.errors.table_id }}</div>
+                            <button
+                                type="button"
+                                @click="submitOrder"
+                                :disabled="cart.length === 0 || orderForm.processing"
+                                class="mt-3 w-full rounded-md bg-emerald-600 px-4 py-2.5 font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Gửi bếp món thêm
+                            </button>
+                        </div>
+
                         <label class="mb-2 block text-sm font-bold text-slate-700">Chuyển sang bàn trống</label>
                         <div class="flex gap-2">
                             <select

@@ -96,12 +96,6 @@ class StaffPosController extends Controller
                 ->lockForUpdate()
                 ->findOrFail($validated['table_id']);
 
-            if ($table->status !== 'empty') {
-                throw ValidationException::withMessages([
-                    'table_id' => 'Bàn này đang có khách, vui lòng chọn bàn trống.',
-                ]);
-            }
-
             $menuIds = collect($validated['items'])->pluck('menu_id')->unique()->values();
             $menus = Menu::query()
                 ->whereIn('id', $menuIds)
@@ -118,21 +112,34 @@ class StaffPosController extends Controller
                 ]);
             }
 
-            $order = Order::create([
-                'order_code' => $this->makeOrderCode(),
-                'table_id' => $table->id,
-                'branch_id' => $branchId,
-                'user_id' => $request->user()->id,
-                'total_price' => 0,
-                'status' => 'pending',
-            ]);
+            $order = Order::query()
+                ->where('table_id', $table->id)
+                ->where('branch_id', $branchId)
+                ->whereNotIn('status', ['paid', 'cancelled'])
+                ->lockForUpdate()
+                ->first();
 
-            $total = 0;
+            if ($table->status === 'empty' && ! $order) {
+                $order = Order::create([
+                    'order_code' => $this->makeOrderCode(),
+                    'table_id' => $table->id,
+                    'branch_id' => $branchId,
+                    'user_id' => $request->user()->id,
+                    'total_price' => 0,
+                    'status' => 'pending',
+                ]);
+
+                $table->update(['status' => 'occupied']);
+            }
+
+            if (! $order) {
+                throw ValidationException::withMessages([
+                    'table_id' => 'Không tìm thấy hóa đơn đang hoạt động cho bàn này.',
+                ]);
+            }
 
             foreach ($validated['items'] as $item) {
                 $menu = $menus->get($item['menu_id']);
-                $lineTotal = $menu->price * $item['quantity'];
-                $total += $lineTotal;
 
                 $order->items()->create([
                     'menu_id' => $menu->id,
@@ -143,8 +150,9 @@ class StaffPosController extends Controller
                 ]);
             }
 
-            $order->update(['total_price' => $total]);
-            $table->update(['status' => 'occupied']);
+            $order->update([
+                'total_price' => $order->items()->sum(DB::raw('quantity * price')),
+            ]);
         });
 
         return redirect()->route('staff.dashboard')->with('success', 'Đã gửi order xuống bếp.');

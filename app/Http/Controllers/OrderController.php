@@ -15,16 +15,16 @@ class OrderController extends Controller
      */
     public function index(Request $request): Response
     {
-        $branchId = $request->query('branch_id');
+        $branchId = $this->scopeBranchId($request);
 
-        $query = Order::with(['table', 'branch', 'user', 'items']);
+        $query = Order::with(['table', 'branch', 'user', 'items.menu']);
 
         if ($branchId) {
             $query->where('branch_id', $branchId);
         }
 
         $orders = $query->get();
-        $branches = Branch::all();
+        $branches = $this->availableBranches($request);
 
         return Inertia::render('Admin/Orders/Index', [
             'orders' => $orders,
@@ -72,10 +72,10 @@ class OrderController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $order = Order::findOrFail($id);
+        $order = $this->scopedOrders($request)->findOrFail($id);
 
         $validated = $request->validate([
-            'status' => 'required|in:pending,preparing,ready,completed,cancelled',
+            'status' => 'required|in:pending,serving,paid,cancelled',
         ]);
 
         $order->update($validated);
@@ -88,9 +88,38 @@ class OrderController extends Controller
      */
     public function destroy(string $id)
     {
-        $order = Order::findOrFail($id);
+        $order = $this->scopedOrders(request())->findOrFail($id);
         $order->delete();
 
         return redirect()->back()->with('success', 'Đơn hàng đã được xóa thành công.');
+    }
+
+    private function scopedOrders(Request $request)
+    {
+        $query = Order::query();
+
+        if ($request->user()->role === 'manager') {
+            $query->where('branch_id', $request->user()->branch_id);
+        }
+
+        return $query;
+    }
+
+    private function scopeBranchId(Request $request): ?string
+    {
+        if ($request->user()->role === 'manager') {
+            return (string) $request->user()->branch_id;
+        }
+
+        return $request->query('branch_id');
+    }
+
+    private function availableBranches(Request $request)
+    {
+        if ($request->user()->role === 'manager') {
+            return Branch::where('id', $request->user()->branch_id)->get();
+        }
+
+        return Branch::all();
     }
 }

@@ -1,6 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 
 const props = defineProps({
@@ -13,6 +13,8 @@ const showModal = ref(false);
 const isEditing = ref(false);
 const editingTable = ref(null);
 const selectedBranchId = ref(props.filters.branch_id || '');
+const page = usePage();
+const isManager = page.props.auth.user.role === 'manager';
 
 const form = useForm({
     branch_id: '',
@@ -22,6 +24,10 @@ const form = useForm({
 });
 
 watch(selectedBranchId, (value) => {
+    if (isManager) {
+        return;
+    }
+
     const params = new URLSearchParams();
     if (value) {
         params.set('branch_id', value);
@@ -89,7 +95,6 @@ const getStatusClass = (status) => {
     const classes = {
         empty: 'bg-green-100 text-green-800',
         occupied: 'bg-red-100 text-red-800',
-        reserved: 'bg-yellow-100 text-yellow-800',
     };
     return classes[status] || 'bg-gray-100 text-gray-800';
 };
@@ -98,7 +103,6 @@ const getStatusText = (status) => {
     const texts = {
         empty: 'Trống',
         occupied: 'Có khách',
-        reserved: 'Đã đặt',
     };
     return texts[status] || status;
 };
@@ -116,7 +120,7 @@ const getStatusText = (status) => {
         </div>
 
         <!-- Filter -->
-        <div class="bg-white shadow rounded-lg p-4 mb-6">
+        <div v-if="!isManager" class="bg-white shadow rounded-lg p-4 mb-6">
             <div class="flex items-center gap-4">
                 <label class="text-gray-700 font-medium">Lọc theo chi nhánh:</label>
                 <select
@@ -213,6 +217,7 @@ const getStatusText = (status) => {
                             v-model="form.branch_id"
                             class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             required
+                            :disabled="isManager"
                         >
                             <option value="">Chọn chi nhánh</option>
                             <option v-for="branch in branches" :key="branch.id" :value="branch.id">
@@ -260,7 +265,6 @@ const getStatusText = (status) => {
                         >
                             <option value="empty">Trống</option>
                             <option value="occupied">Có khách</option>
-                            <option value="reserved">Đã đặt</option>
                         </select>
                         <div v-if="form.errors.status" class="text-red-500 text-xs mt-1">{{ form.errors.status }}</div>
                     </div>

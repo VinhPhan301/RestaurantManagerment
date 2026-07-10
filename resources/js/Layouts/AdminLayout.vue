@@ -31,6 +31,7 @@ const sidebarOpen = ref(true);
                         Dashboard
                     </Link>
                     <Link
+                        v-if="$page.props.auth.user.role === 'admin'"
                         :href="route('admin.branches.index')"
                         class="block px-4 py-2 rounded hover:bg-gray-700 transition flex items-center gap-3"
                     >

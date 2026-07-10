@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminAuthController;
+use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\KitchenController;
 use App\Http\Controllers\MenuController;
@@ -52,18 +53,19 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/login', [AdminAuthController::class, 'store']);
     });
 
-    Route::middleware(['auth', 'role:admin'])->group(function () {
-        Route::get('/dashboard', function () {
-            return Inertia::render('Admin/Dashboard');
-        })->name('dashboard');
+    Route::middleware(['auth', 'role:admin,manager'])->group(function () {
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-        Route::resource('branches', BranchController::class);
         Route::resource('users', UserController::class);
         Route::resource('menus', MenuController::class);
         Route::resource('orders', OrderController::class);
         Route::resource('tables', TableController::class);
 
         Route::post('/logout', [AdminAuthController::class, 'destroy'])->name('logout');
+    });
+
+    Route::middleware(['auth', 'role:admin'])->group(function () {
+        Route::resource('branches', BranchController::class);
     });
 });
 

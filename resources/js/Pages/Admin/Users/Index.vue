@@ -1,6 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Link, useForm } from '@inertiajs/vue3';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 
 const props = defineProps({
@@ -13,6 +13,8 @@ const showModal = ref(false);
 const isEditing = ref(false);
 const editingUser = ref(null);
 const selectedBranchId = ref(props.filters.branch_id || '');
+const page = usePage();
+const isManager = page.props.auth.user.role === 'manager';
 
 const form = useForm({
     name: '',
@@ -23,6 +25,10 @@ const form = useForm({
 });
 
 watch(selectedBranchId, (value) => {
+    if (isManager) {
+        return;
+    }
+
     const params = new URLSearchParams();
     if (value) {
         params.set('branch_id', value);
@@ -96,7 +102,7 @@ const deleteUser = (user) => {
             </button>
         </div>
             <!-- Filter -->
-            <div class="bg-white shadow rounded-lg p-4 mb-6">
+            <div v-if="!isManager" class="bg-white shadow rounded-lg p-4 mb-6">
                 <div class="flex items-center gap-4">
                     <label class="text-gray-700 font-medium">Lọc theo chi nhánh:</label>
                     <select
@@ -246,6 +252,7 @@ const deleteUser = (user) => {
                             v-model="form.branch_id"
                             class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             required
+                            :disabled="isManager"
                         >
                             <option value="">Chọn chi nhánh</option>
                             <option v-for="branch in branches" :key="branch.id" :value="branch.id">

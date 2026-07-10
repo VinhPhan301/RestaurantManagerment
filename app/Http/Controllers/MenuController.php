@@ -17,17 +17,21 @@ class MenuController extends Controller
      */
     public function index(Request $request): Response
     {
-        $branchId = $request->query('branch_id');
+        $branchId = $this->scopeBranchId($request);
 
         $query = Menu::with(['category', 'branch']);
 
-        if ($branchId) {
+        if ($request->user()->role === 'manager') {
+            $query->where(function ($query) use ($branchId) {
+                $query->whereNull('branch_id')->orWhere('branch_id', $branchId);
+            });
+        } elseif ($branchId) {
             $query->where('branch_id', $branchId);
         }
 
         $menus = $query->get();
         $categories = Category::all();
-        $branches = Branch::all();
+        $branches = $this->availableBranches($request);
 
         return Inertia::render('Admin/Menus/Index', [
             'menus' => $menus,
@@ -52,6 +56,8 @@ class MenuController extends Controller
      */
     public function store(Request $request)
     {
+        $this->applyManagerBranchInput($request);
+
         $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'branch_id' => 'nullable|exists:branches,id',
@@ -95,7 +101,9 @@ class MenuController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $menu = Menu::findOrFail($id);
+        $menu = $this->scopedMenus($request)->findOrFail($id);
+
+        $this->applyManagerBranchInput($request);
 
         $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
@@ -128,7 +136,7 @@ class MenuController extends Controller
      */
     public function destroy(string $id)
     {
-        $menu = Menu::findOrFail($id);
+        $menu = $this->scopedMenus(request())->findOrFail($id);
 
         // Delete image if exists
         if ($menu->image && Storage::disk('public')->exists($menu->image)) {
@@ -138,5 +146,43 @@ class MenuController extends Controller
         $menu->delete();
 
         return redirect()->back()->with('success', 'Món ăn đã được xóa thành công.');
+    }
+
+    private function scopedMenus(Request $request)
+    {
+        $query = Menu::query();
+
+        if ($request->user()->role === 'manager') {
+            $query->where('branch_id', $request->user()->branch_id);
+        }
+
+        return $query;
+    }
+
+    private function scopeBranchId(Request $request): ?string
+    {
+        if ($request->user()->role === 'manager') {
+            return (string) $request->user()->branch_id;
+        }
+
+        return $request->query('branch_id');
+    }
+
+    private function availableBranches(Request $request)
+    {
+        if ($request->user()->role === 'manager') {
+            return Branch::where('id', $request->user()->branch_id)->get();
+        }
+
+        return Branch::all();
+    }
+
+    private function applyManagerBranchInput(Request $request): void
+    {
+        if ($request->user()->role === 'manager') {
+            $request->merge([
+                'branch_id' => $request->user()->branch_id,
+            ]);
+        }
     }
 }

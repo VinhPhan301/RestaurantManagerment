@@ -16,7 +16,7 @@ class UserController extends Controller
      */
     public function index(Request $request): Response
     {
-        $branchId = $request->query('branch_id');
+        $branchId = $this->scopeBranchId($request);
 
         $query = User::whereIn('role', ['manager', 'staff']);
 
@@ -25,7 +25,7 @@ class UserController extends Controller
         }
 
         $users = $query->with('branch')->get();
-        $branches = Branch::all();
+        $branches = $this->availableBranches($request);
 
         return Inertia::render('Admin/Users/Index', [
             'users' => $users,
@@ -49,6 +49,8 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        $this->applyManagerBranchInput($request);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -89,7 +91,9 @@ class UserController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $user = User::findOrFail($id);
+        $user = $this->scopedUsers($request)->findOrFail($id);
+
+        $this->applyManagerBranchInput($request);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -108,9 +112,48 @@ class UserController extends Controller
      */
     public function destroy(string $id)
     {
-        $user = User::findOrFail($id);
+        $user = $this->scopedUsers(request())->findOrFail($id);
         $user->delete();
 
         return redirect()->back()->with('success', 'Nhân viên đã được xóa thành công.');
+    }
+
+    private function scopedUsers(Request $request)
+    {
+        $query = User::whereIn('role', ['manager', 'staff']);
+
+        if ($request->user()->role === 'manager') {
+            $query->where('branch_id', $request->user()->branch_id);
+        }
+
+        return $query;
+    }
+
+    private function scopeBranchId(Request $request): ?string
+    {
+        if ($request->user()->role === 'manager') {
+            return (string) $request->user()->branch_id;
+        }
+
+        return $request->query('branch_id');
+    }
+
+    private function availableBranches(Request $request)
+    {
+        if ($request->user()->role === 'manager') {
+            return Branch::where('id', $request->user()->branch_id)->get();
+        }
+
+        return Branch::all();
+    }
+
+    private function applyManagerBranchInput(Request $request): void
+    {
+        if ($request->user()->role === 'manager') {
+            $request->merge([
+                'branch_id' => $request->user()->branch_id,
+                'role' => $request->input('role') === 'manager' ? 'manager' : 'staff',
+            ]);
+        }
     }
 }

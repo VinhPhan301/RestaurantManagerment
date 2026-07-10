@@ -15,7 +15,7 @@ class TableController extends Controller
      */
     public function index(Request $request): Response
     {
-        $branchId = $request->query('branch_id');
+        $branchId = $this->scopeBranchId($request);
 
         $query = Table::with('branch');
 
@@ -24,7 +24,7 @@ class TableController extends Controller
         }
 
         $tables = $query->get();
-        $branches = Branch::all();
+        $branches = $this->availableBranches($request);
 
         return Inertia::render('Admin/Tables/Index', [
             'tables' => $tables,
@@ -48,11 +48,13 @@ class TableController extends Controller
      */
     public function store(Request $request)
     {
+        $this->applyManagerBranchInput($request);
+
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'name' => 'required|string|max:255',
             'capacity' => 'required|integer|min:1',
-            'status' => 'required|in:empty,occupied,reserved',
+            'status' => 'required|in:empty,occupied',
         ]);
 
         Table::create($validated);
@@ -81,13 +83,15 @@ class TableController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $table = Table::findOrFail($id);
+        $table = $this->scopedTables($request)->findOrFail($id);
+
+        $this->applyManagerBranchInput($request);
 
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'name' => 'required|string|max:255',
             'capacity' => 'required|integer|min:1',
-            'status' => 'required|in:empty,occupied,reserved',
+            'status' => 'required|in:empty,occupied',
         ]);
 
         $table->update($validated);
@@ -100,9 +104,47 @@ class TableController extends Controller
      */
     public function destroy(string $id)
     {
-        $table = Table::findOrFail($id);
+        $table = $this->scopedTables(request())->findOrFail($id);
         $table->delete();
 
         return redirect()->back()->with('success', 'Bàn đã được xóa thành công.');
+    }
+
+    private function scopedTables(Request $request)
+    {
+        $query = Table::query();
+
+        if ($request->user()->role === 'manager') {
+            $query->where('branch_id', $request->user()->branch_id);
+        }
+
+        return $query;
+    }
+
+    private function scopeBranchId(Request $request): ?string
+    {
+        if ($request->user()->role === 'manager') {
+            return (string) $request->user()->branch_id;
+        }
+
+        return $request->query('branch_id');
+    }
+
+    private function availableBranches(Request $request)
+    {
+        if ($request->user()->role === 'manager') {
+            return Branch::where('id', $request->user()->branch_id)->get();
+        }
+
+        return Branch::all();
+    }
+
+    private function applyManagerBranchInput(Request $request): void
+    {
+        if ($request->user()->role === 'manager') {
+            $request->merge([
+                'branch_id' => $request->user()->branch_id,
+            ]);
+        }
     }
 }
