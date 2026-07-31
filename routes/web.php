@@ -79,6 +79,8 @@ Route::prefix('staff')->name('staff.')->group(function () {
     Route::middleware(['auth', 'role:manager,staff'])->group(function () {
         Route::get('/dashboard', [StaffPosController::class, 'dashboard'])->name('dashboard');
         Route::post('/orders', [StaffPosController::class, 'storeOrder'])->name('orders.store');
+        Route::post('/tables/reserve', [StaffPosController::class, 'reserveTable'])->name('tables.reserve');
+        Route::post('/tables/cancel-reservation', [StaffPosController::class, 'cancelReservation'])->name('tables.cancel-reservation');
         Route::post('/tables/move', [StaffPosController::class, 'moveTable'])->name('tables.move');
         Route::post('/checkout', [StaffPosController::class, 'checkout'])->name('checkout');
 

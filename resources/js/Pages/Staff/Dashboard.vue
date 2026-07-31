@@ -26,6 +26,18 @@ const moveForm = useForm({
     target_table_id: null,
 });
 
+const reservationForm = useForm({
+    table_id: null,
+    reservation_customer_name: '',
+    reservation_phone: '',
+    reservation_time: '',
+    reservation_note: '',
+});
+
+const cancelReservationForm = useForm({
+    table_id: null,
+});
+
 const checkoutForm = useForm({
     table_id: null,
 });
@@ -93,6 +105,8 @@ const selectTable = (table) => {
     moveTargetId.value = '';
     orderForm.clearErrors();
     moveForm.clearErrors();
+    reservationForm.clearErrors();
+    cancelReservationForm.clearErrors();
     checkoutForm.clearErrors();
 
     if (table.status === 'empty') {
@@ -100,6 +114,15 @@ const selectTable = (table) => {
         isAddingItems.value = false;
         cart.value = [];
         orderForm.table_id = table.id;
+        reservationForm.table_id = table.id;
+        cancelReservationForm.table_id = null;
+    } else if (table.status === 'reserved') {
+        mode.value = 'reserved';
+        isAddingItems.value = false;
+        cart.value = [];
+        orderForm.table_id = table.id;
+        reservationForm.table_id = null;
+        cancelReservationForm.table_id = table.id;
     } else {
         mode.value = 'checkout';
         isAddingItems.value = false;
@@ -193,6 +216,31 @@ const checkout = () => {
     });
 };
 
+const reserveTable = () => {
+    reservationForm.table_id = selectedTable.value?.id;
+
+    reservationForm.post(route('staff.tables.reserve'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            reservationForm.reset();
+            selectedTable.value = null;
+            mode.value = 'tables';
+        },
+    });
+};
+
+const cancelReservation = () => {
+    cancelReservationForm.table_id = selectedTable.value?.id;
+
+    cancelReservationForm.post(route('staff.tables.cancel-reservation'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            selectedTable.value = null;
+            mode.value = 'tables';
+        },
+    });
+};
+
 const closePanel = () => {
     selectedTable.value = null;
     cart.value = [];
@@ -201,6 +249,9 @@ const closePanel = () => {
     mode.value = 'tables';
     orderForm.clearErrors();
     moveForm.clearErrors();
+    reservationForm.reset();
+    reservationForm.clearErrors();
+    cancelReservationForm.clearErrors();
     checkoutForm.clearErrors();
 };
 
@@ -237,6 +288,28 @@ const statusClass = (status) => {
     };
 
     return classes[status] || 'bg-slate-100 text-slate-700';
+};
+
+const tableStatusText = (status) => {
+    const labels = {
+        empty: 'Trống',
+        reserved: 'Đặt trước',
+        occupied: 'Đang có khách',
+    };
+
+    return labels[status] || status;
+};
+
+const tableStatusClass = (table) => {
+    if (table.status === 'empty') {
+        return 'border-emerald-200 bg-emerald-50 text-emerald-950';
+    }
+
+    if (table.status === 'reserved') {
+        return 'border-amber-200 bg-amber-50 text-amber-950';
+    }
+
+    return 'border-rose-200 bg-rose-50 text-rose-950';
 };
 </script>
 
@@ -294,9 +367,7 @@ const statusClass = (status) => {
                         @click="selectTable(table)"
                         class="aspect-[1.15/1] rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md"
                         :class="[
-                            table.status === 'empty'
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-950'
-                                : 'border-rose-200 bg-rose-50 text-rose-950',
+                            tableStatusClass(table),
                             selectedTable?.id === table.id ? 'ring-2 ring-slate-900' : ''
                         ]"
                     >
@@ -307,7 +378,13 @@ const statusClass = (status) => {
                             </div>
                             <div>
                                 <div class="text-sm font-semibold">
-                                    {{ table.status === 'empty' ? 'Trống' : 'Đang có khách' }}
+                                    {{ tableStatusText(table.status) }}
+                                </div>
+                                <div v-if="table.status === 'reserved'" class="mt-1 truncate text-xs opacity-80">
+                                    {{ table.reservation_customer_name }} · {{ table.reservation_phone }}
+                                </div>
+                                <div v-if="table.status === 'reserved' && table.reservation_time_display" class="mt-1 truncate text-xs font-semibold opacity-90">
+                                    {{ table.reservation_time_display }}
                                 </div>
                                 <div v-if="table.active_order" class="mt-1 truncate text-xs opacity-80">
                                     {{ table.active_order.order_code }}
@@ -381,6 +458,50 @@ const statusClass = (status) => {
                         </button>
                     </div>
 
+                    <div class="mb-4 shrink-0 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                        <div class="mb-3">
+                            <p class="text-sm font-bold text-amber-800">Đặt bàn trước</p>
+                            <p class="text-xs text-slate-600">Dùng khi khách gọi điện giữ bàn.</p>
+                        </div>
+                        <div class="space-y-2">
+                            <input
+                                v-model="reservationForm.reservation_customer_name"
+                                type="text"
+                                class="w-full rounded-md border-amber-200 text-sm focus:border-amber-500 focus:ring-amber-500"
+                                placeholder="Tên khách"
+                            />
+                            <input
+                                v-model="reservationForm.reservation_phone"
+                                type="text"
+                                class="w-full rounded-md border-amber-200 text-sm focus:border-amber-500 focus:ring-amber-500"
+                                placeholder="Số điện thoại"
+                            />
+                            <input
+                                v-model="reservationForm.reservation_time"
+                                type="datetime-local"
+                                class="w-full rounded-md border-amber-200 text-sm focus:border-amber-500 focus:ring-amber-500"
+                            />
+                            <textarea
+                                v-model="reservationForm.reservation_note"
+                                rows="2"
+                                class="w-full rounded-md border-amber-200 text-sm focus:border-amber-500 focus:ring-amber-500"
+                                placeholder="Ghi chú"
+                            ></textarea>
+                            <div v-if="reservationForm.errors.table_id" class="text-xs font-semibold text-rose-700">{{ reservationForm.errors.table_id }}</div>
+                            <div v-if="reservationForm.errors.reservation_customer_name" class="text-xs font-semibold text-rose-700">{{ reservationForm.errors.reservation_customer_name }}</div>
+                            <div v-if="reservationForm.errors.reservation_phone" class="text-xs font-semibold text-rose-700">{{ reservationForm.errors.reservation_phone }}</div>
+                            <div v-if="reservationForm.errors.reservation_time" class="text-xs font-semibold text-rose-700">{{ reservationForm.errors.reservation_time }}</div>
+                            <button
+                                type="button"
+                                @click="reserveTable"
+                                :disabled="reservationForm.processing"
+                                class="w-full rounded-md bg-amber-500 px-4 py-2.5 font-bold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Lưu đặt bàn
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                         <div
                             v-for="item in cart"
@@ -434,6 +555,108 @@ const statusClass = (status) => {
                         >
                             Gửi bếp
                         </button>
+                    </div>
+                </div>
+
+                <div v-else-if="mode === 'reserved'" class="flex h-full min-h-0 flex-col">
+                    <div class="mb-4 flex shrink-0 items-start justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-semibold text-amber-700">Bàn đã đặt trước</p>
+                            <h2 class="text-xl font-bold text-slate-950">{{ selectedTable.name }}</h2>
+                        </div>
+                        <button type="button" @click="closePanel" class="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                            Đóng
+                        </button>
+                    </div>
+
+                    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <div class="text-sm font-semibold text-amber-700">Thông tin khách</div>
+                            <div class="mt-2 text-lg font-bold text-slate-950">{{ selectedTable.reservation_customer_name }}</div>
+                            <div class="mt-1 text-sm text-slate-700">{{ selectedTable.reservation_phone }}</div>
+                            <div v-if="selectedTable.reservation_time_display" class="mt-3 rounded-md bg-white px-3 py-2 text-sm font-bold text-amber-800">
+                                {{ selectedTable.reservation_time_display }}
+                            </div>
+                            <div v-if="selectedTable.reservation_note" class="mt-3 rounded-md bg-white p-3 text-sm text-slate-600">
+                                {{ selectedTable.reservation_note }}
+                            </div>
+                        </div>
+
+                        <div v-if="!isAddingItems" class="space-y-3">
+                            <button
+                                type="button"
+                                @click="startAddItems"
+                                class="w-full rounded-md bg-emerald-600 px-4 py-3 font-bold text-white transition hover:bg-emerald-700"
+                            >
+                                Khách đến - chọn món
+                            </button>
+                            <button
+                                type="button"
+                                @click="cancelReservation"
+                                :disabled="cancelReservationForm.processing"
+                                class="w-full rounded-md border border-rose-300 bg-white px-4 py-3 font-bold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Hủy đặt bàn
+                            </button>
+                            <div v-if="cancelReservationForm.errors.table_id" class="rounded-md bg-rose-50 p-3 text-sm font-semibold text-rose-700">{{ cancelReservationForm.errors.table_id }}</div>
+                        </div>
+
+                        <div v-else class="rounded-lg border border-emerald-200 bg-white p-3">
+                            <div class="mb-3 flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-bold text-emerald-700">Chọn món cho khách</p>
+                                    <p class="text-xs text-slate-500">Chọn món ở danh sách giữa</p>
+                                </div>
+                                <button type="button" @click="cancelAddItems" class="text-sm font-semibold text-slate-600 hover:text-slate-900">
+                                    Hủy
+                                </button>
+                            </div>
+
+                            <div class="max-h-72 space-y-2 overflow-y-auto pr-1">
+                                <div
+                                    v-for="item in cart"
+                                    :key="item.menu_id"
+                                    class="rounded-md border border-slate-200 p-2"
+                                >
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <div class="truncate text-sm font-bold text-slate-950">{{ item.name }}</div>
+                                            <div class="text-xs text-slate-500">{{ formatPrice(item.price) }}</div>
+                                        </div>
+                                        <div class="flex items-center rounded-md border border-slate-300">
+                                            <button type="button" @click="decrease(item)" class="h-8 w-8 font-bold text-slate-700">-</button>
+                                            <div class="w-8 text-center text-sm font-bold">{{ item.quantity }}</div>
+                                            <button type="button" @click="increase(item)" class="h-8 w-8 font-bold text-slate-700">+</button>
+                                        </div>
+                                    </div>
+                                    <input
+                                        v-model="item.notes"
+                                        type="text"
+                                        class="mt-2 w-full rounded-md border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500"
+                                        placeholder="Ghi chú"
+                                    />
+                                </div>
+
+                                <div v-if="cart.length === 0" class="rounded-md border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
+                                    Chưa chọn món.
+                                </div>
+                            </div>
+
+                            <div class="mt-3 flex items-center justify-between font-bold">
+                                <span>Tạm tính</span>
+                                <span>{{ formatPrice(cartTotal) }}</span>
+                            </div>
+                            <div v-if="orderForm.errors.items" class="mt-2 rounded-md bg-rose-50 p-2 text-xs font-semibold text-rose-700">{{ orderForm.errors.items }}</div>
+                            <div v-if="orderForm.errors.table_id" class="mt-2 rounded-md bg-rose-50 p-2 text-xs font-semibold text-rose-700">{{ orderForm.errors.table_id }}</div>
+                            <button
+                                type="button"
+                                @click="submitOrder"
+                                :disabled="cart.length === 0 || orderForm.processing"
+                                class="mt-3 w-full rounded-md bg-emerald-600 px-4 py-2.5 font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Gửi bếp
+                            </button>
+                        </div>
                     </div>
                 </div>
 

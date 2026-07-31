@@ -23,7 +23,21 @@ class TableController extends Controller
             $query->where('branch_id', $branchId);
         }
 
-        $tables = $query->get();
+        $tables = $query->get()->map(function (Table $table) {
+            return [
+                'id' => $table->id,
+                'branch_id' => $table->branch_id,
+                'name' => $table->name,
+                'capacity' => $table->capacity,
+                'status' => $table->status,
+                'reservation_customer_name' => $table->reservation_customer_name,
+                'reservation_phone' => $table->reservation_phone,
+                'reservation_time' => $table->reservation_time?->format('Y-m-d\TH:i'),
+                'reservation_time_display' => $table->reservation_time?->format('H:i d/m/Y'),
+                'reservation_note' => $table->reservation_note,
+                'branch' => $table->branch,
+            ];
+        });
         $branches = $this->availableBranches($request);
 
         return Inertia::render('Admin/Tables/Index', [
@@ -54,8 +68,14 @@ class TableController extends Controller
             'branch_id' => 'required|exists:branches,id',
             'name' => 'required|string|max:255',
             'capacity' => 'required|integer|min:1',
-            'status' => 'required|in:empty,occupied',
+            'status' => 'required|in:empty,occupied,reserved',
+            'reservation_customer_name' => 'nullable|required_if:status,reserved|string|max:255',
+            'reservation_phone' => 'nullable|required_if:status,reserved|string|max:30',
+            'reservation_time' => 'nullable|required_if:status,reserved|date',
+            'reservation_note' => 'nullable|string|max:500',
         ]);
+
+        $this->clearReservationWhenNotReserved($validated);
 
         Table::create($validated);
 
@@ -91,8 +111,14 @@ class TableController extends Controller
             'branch_id' => 'required|exists:branches,id',
             'name' => 'required|string|max:255',
             'capacity' => 'required|integer|min:1',
-            'status' => 'required|in:empty,occupied',
+            'status' => 'required|in:empty,occupied,reserved',
+            'reservation_customer_name' => 'nullable|required_if:status,reserved|string|max:255',
+            'reservation_phone' => 'nullable|required_if:status,reserved|string|max:30',
+            'reservation_time' => 'nullable|required_if:status,reserved|date',
+            'reservation_note' => 'nullable|string|max:500',
         ]);
+
+        $this->clearReservationWhenNotReserved($validated);
 
         $table->update($validated);
 
@@ -145,6 +171,16 @@ class TableController extends Controller
             $request->merge([
                 'branch_id' => $request->user()->branch_id,
             ]);
+        }
+    }
+
+    private function clearReservationWhenNotReserved(array &$data): void
+    {
+        if ($data['status'] !== 'reserved') {
+            $data['reservation_customer_name'] = null;
+            $data['reservation_phone'] = null;
+            $data['reservation_time'] = null;
+            $data['reservation_note'] = null;
         }
     }
 }

@@ -21,6 +21,10 @@ const form = useForm({
     name: '',
     capacity: 4,
     status: 'empty',
+    reservation_customer_name: '',
+    reservation_phone: '',
+    reservation_time: '',
+    reservation_note: '',
 });
 
 watch(selectedBranchId, (value) => {
@@ -43,6 +47,10 @@ const openModal = (table = null) => {
         form.name = table.name;
         form.capacity = table.capacity;
         form.status = table.status;
+        form.reservation_customer_name = table.reservation_customer_name || '';
+        form.reservation_phone = table.reservation_phone || '';
+        form.reservation_time = table.reservation_time ? table.reservation_time.slice(0, 16) : '';
+        form.reservation_note = table.reservation_note || '';
     } else {
         isEditing.value = false;
         editingTable.value = null;
@@ -50,6 +58,10 @@ const openModal = (table = null) => {
         form.capacity = 4;
         form.status = 'empty';
         form.branch_id = selectedBranchId.value || '';
+        form.reservation_customer_name = '';
+        form.reservation_phone = '';
+        form.reservation_time = '';
+        form.reservation_note = '';
     }
     showModal.value = true;
 };
@@ -87,6 +99,10 @@ const toggleStatus = (table) => {
             name: table.name,
             capacity: table.capacity,
             status: newStatus,
+            reservation_customer_name: table.reservation_customer_name,
+            reservation_phone: table.reservation_phone,
+            reservation_time: table.reservation_time,
+            reservation_note: table.reservation_note,
         },
     });
 };
@@ -95,6 +111,7 @@ const getStatusClass = (status) => {
     const classes = {
         empty: 'bg-green-100 text-green-800',
         occupied: 'bg-red-100 text-red-800',
+        reserved: 'bg-amber-100 text-amber-800',
     };
     return classes[status] || 'bg-gray-100 text-gray-800';
 };
@@ -103,6 +120,7 @@ const getStatusText = (status) => {
     const texts = {
         empty: 'Trống',
         occupied: 'Có khách',
+        reserved: 'Đặt trước',
     };
     return texts[status] || status;
 };
@@ -152,6 +170,9 @@ const getStatusText = (status) => {
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Trạng thái
                         </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Khách đặt
+                        </th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Hành động
                         </th>
@@ -177,6 +198,15 @@ const getStatusText = (status) => {
                                 {{ getStatusText(table.status) }}
                             </button>
                         </td>
+                        <td class="px-6 py-4">
+                            <div v-if="table.status === 'reserved'" class="text-sm text-gray-700">
+                                <div class="font-medium text-gray-900">{{ table.reservation_customer_name }}</div>
+                                <div class="text-gray-500">{{ table.reservation_phone }}</div>
+                                <div v-if="table.reservation_time_display" class="mt-1 text-xs font-semibold text-amber-700">{{ table.reservation_time_display }}</div>
+                                <div v-if="table.reservation_note" class="mt-1 text-xs text-gray-500">{{ table.reservation_note }}</div>
+                            </div>
+                            <div v-else class="text-sm text-gray-400">-</div>
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <button
                                 @click="openModal(table)"
@@ -193,7 +223,7 @@ const getStatusText = (status) => {
                         </td>
                     </tr>
                     <tr v-if="tables.length === 0">
-                        <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">
                             Chưa có bàn nào
                         </td>
                     </tr>
@@ -265,8 +295,51 @@ const getStatusText = (status) => {
                         >
                             <option value="empty">Trống</option>
                             <option value="occupied">Có khách</option>
+                            <option value="reserved">Đặt trước</option>
                         </select>
                         <div v-if="form.errors.status" class="text-red-500 text-xs mt-1">{{ form.errors.status }}</div>
+                    </div>
+
+                    <div v-if="form.status === 'reserved'" class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                        <div class="mb-3">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Tên khách *</label>
+                            <input
+                                v-model="form.reservation_customer_name"
+                                type="text"
+                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                            <div v-if="form.errors.reservation_customer_name" class="text-red-500 text-xs mt-1">{{ form.errors.reservation_customer_name }}</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Số điện thoại *</label>
+                            <input
+                                v-model="form.reservation_phone"
+                                type="text"
+                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                            <div v-if="form.errors.reservation_phone" class="text-red-500 text-xs mt-1">{{ form.errors.reservation_phone }}</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Thời gian đặt *</label>
+                            <input
+                                v-model="form.reservation_time"
+                                type="datetime-local"
+                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                            <div v-if="form.errors.reservation_time" class="text-red-500 text-xs mt-1">{{ form.errors.reservation_time }}</div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Ghi chú</label>
+                            <textarea
+                                v-model="form.reservation_note"
+                                rows="2"
+                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            ></textarea>
+                            <div v-if="form.errors.reservation_note" class="text-red-500 text-xs mt-1">{{ form.errors.reservation_note }}</div>
+                        </div>
                     </div>
 
                     <div class="flex justify-end gap-3">

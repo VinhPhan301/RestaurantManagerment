@@ -37,6 +37,11 @@ class StaffPosController extends Controller
                     'name' => $table->name,
                     'capacity' => $table->capacity,
                     'status' => $table->status,
+                    'reservation_customer_name' => $table->reservation_customer_name,
+                    'reservation_phone' => $table->reservation_phone,
+                    'reservation_time' => $table->reservation_time?->format('Y-m-d\TH:i'),
+                    'reservation_time_display' => $table->reservation_time?->format('H:i d/m/Y'),
+                    'reservation_note' => $table->reservation_note,
                     'active_order' => $activeOrder ? [
                         'id' => $activeOrder->id,
                         'order_code' => $activeOrder->order_code,
@@ -119,7 +124,7 @@ class StaffPosController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            if ($table->status === 'empty' && ! $order) {
+            if (in_array($table->status, ['empty', 'reserved'], true) && ! $order) {
                 $order = Order::create([
                     'order_code' => $this->makeOrderCode(),
                     'table_id' => $table->id,
@@ -129,7 +134,13 @@ class StaffPosController extends Controller
                     'status' => 'pending',
                 ]);
 
-                $table->update(['status' => 'occupied']);
+                $table->update([
+                    'status' => 'occupied',
+                    'reservation_customer_name' => null,
+                    'reservation_phone' => null,
+                    'reservation_time' => null,
+                    'reservation_note' => null,
+                ]);
             }
 
             if (! $order) {
@@ -156,6 +167,68 @@ class StaffPosController extends Controller
         });
 
         return redirect()->route('staff.dashboard')->with('success', 'Đã gửi order xuống bếp.');
+    }
+
+    public function reserveTable(Request $request): RedirectResponse
+    {
+        $branchId = $this->staffBranchId($request);
+
+        $validated = $request->validate([
+            'table_id' => ['required', 'exists:tables,id'],
+            'reservation_customer_name' => ['required', 'string', 'max:255'],
+            'reservation_phone' => ['required', 'string', 'max:30'],
+            'reservation_time' => ['required', 'date'],
+            'reservation_note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $table = Table::query()
+            ->where('branch_id', $branchId)
+            ->findOrFail($validated['table_id']);
+
+        if ($table->status !== 'empty') {
+            throw ValidationException::withMessages([
+                'table_id' => 'Chỉ có thể đặt trước bàn đang trống.',
+            ]);
+        }
+
+        $table->update([
+            'status' => 'reserved',
+            'reservation_customer_name' => $validated['reservation_customer_name'],
+            'reservation_phone' => $validated['reservation_phone'],
+            'reservation_time' => $validated['reservation_time'],
+            'reservation_note' => $validated['reservation_note'] ?? null,
+        ]);
+
+        return redirect()->route('staff.dashboard')->with('success', 'Đã đặt bàn thành công.');
+    }
+
+    public function cancelReservation(Request $request): RedirectResponse
+    {
+        $branchId = $this->staffBranchId($request);
+
+        $validated = $request->validate([
+            'table_id' => ['required', 'exists:tables,id'],
+        ]);
+
+        $table = Table::query()
+            ->where('branch_id', $branchId)
+            ->findOrFail($validated['table_id']);
+
+        if ($table->status !== 'reserved') {
+            throw ValidationException::withMessages([
+                'table_id' => 'Bàn này không ở trạng thái đặt trước.',
+            ]);
+        }
+
+        $table->update([
+            'status' => 'empty',
+            'reservation_customer_name' => null,
+            'reservation_phone' => null,
+            'reservation_time' => null,
+            'reservation_note' => null,
+        ]);
+
+        return redirect()->route('staff.dashboard')->with('success', 'Đã hủy đặt bàn.');
     }
 
     public function moveTable(Request $request): RedirectResponse
@@ -197,8 +270,20 @@ class StaffPosController extends Controller
             }
 
             $order->update(['table_id' => $targetTable->id]);
-            $currentTable->update(['status' => 'empty']);
-            $targetTable->update(['status' => 'occupied']);
+            $currentTable->update([
+                'status' => 'empty',
+                'reservation_customer_name' => null,
+                'reservation_phone' => null,
+                'reservation_time' => null,
+                'reservation_note' => null,
+            ]);
+            $targetTable->update([
+                'status' => 'occupied',
+                'reservation_customer_name' => null,
+                'reservation_phone' => null,
+                'reservation_time' => null,
+                'reservation_note' => null,
+            ]);
         });
 
         return redirect()->route('staff.dashboard')->with('success', 'Đã chuyển bàn thành công.');
@@ -238,7 +323,13 @@ class StaffPosController extends Controller
                 'status' => 'paid',
             ]);
 
-            $table->update(['status' => 'empty']);
+            $table->update([
+                'status' => 'empty',
+                'reservation_customer_name' => null,
+                'reservation_phone' => null,
+                'reservation_time' => null,
+                'reservation_note' => null,
+            ]);
         });
 
         return redirect()->route('staff.dashboard')->with('success', 'Đã thanh toán và giải phóng bàn.');
