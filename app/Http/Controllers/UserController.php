@@ -50,6 +50,7 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $this->applyManagerBranchInput($request);
+        $this->forceManagerStaffRole($request);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -152,8 +153,14 @@ class UserController extends Controller
         if ($request->user()->role === 'manager') {
             $request->merge([
                 'branch_id' => $request->user()->branch_id,
-                'role' => $request->input('role') === 'manager' ? 'manager' : 'staff',
             ]);
+        }
+    }
+
+    private function forceManagerStaffRole(Request $request): void
+    {
+        if ($request->user()->role === 'manager') {
+            $request->merge(['role' => 'staff']);
         }
     }
 }

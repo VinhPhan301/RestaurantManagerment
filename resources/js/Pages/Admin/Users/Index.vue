@@ -237,9 +237,15 @@ const deleteUser = (user) => {
                             v-model="form.role"
                             class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             required
+                            :disabled="isManager && !isEditing"
                         >
                             <option value="staff">Staff</option>
-                            <option value="manager">Manager</option>
+                            <option
+                                v-if="!isManager || (isEditing && form.role === 'manager')"
+                                value="manager"
+                            >
+                                Manager
+                            </option>
                         </select>
                         <div v-if="form.errors.role" class="text-red-500 text-xs mt-1">{{ form.errors.role }}</div>
                     </div>

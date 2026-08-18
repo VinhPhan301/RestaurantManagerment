@@ -50,6 +50,15 @@ const sidebarOpen = ref(true);
                         Nhân sự
                     </Link>
                     <Link
+                        :href="route('admin.reservations.index')"
+                        class="block px-4 py-2 rounded hover:bg-gray-700 transition flex items-center gap-3"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M5 11h14M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2zm3 10h3m-3 4h6"></path>
+                        </svg>
+                        Yêu cầu đặt bàn
+                    </Link>
+                    <Link
                         :href="route('admin.menus.index')"
                         class="block px-4 py-2 rounded hover:bg-gray-700 transition flex items-center gap-3"
                     >

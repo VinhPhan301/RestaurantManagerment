@@ -1,313 +1,293 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-defineProps({
-    canLogin: {
-        type: Boolean,
+const props = defineProps({
+    branches: {
+        type: Array,
+        default: () => [],
     },
-    canRegister: {
-        type: Boolean,
+    menus: {
+        type: Array,
+        default: () => [],
     },
-    laravelVersion: {
-        type: String,
-        required: true,
+});
+
+const tabs = [
+    { key: 'home', label: 'Trang chủ' },
+    { key: 'branches', label: 'Cơ sở' },
+    { key: 'menu', label: 'Menu' },
+];
+
+const validTabKeys = tabs.map((tab) => tab.key);
+const tabFromHash = () => window.location.hash.replace('#', '');
+const activeTab = ref(validTabKeys.includes(tabFromHash()) ? tabFromHash() : 'home');
+const activeCategory = ref('Tất cả');
+const bookingToastVisible = ref(false);
+let bookingToastTimer;
+
+const reviews = [
+    {
+        name: 'Minh Anh',
+        visit: 'Khách hàng thân thiết',
+        quote: 'Món ăn vừa miệng, không gian ấm cúng. Cả nhà mình ai cũng tìm được món yêu thích.',
     },
-    phpVersion: {
-        type: String,
-        required: true,
+    {
+        name: 'Hoàng Nam',
+        visit: 'Bữa tối cuối tuần',
+        quote: 'Nhân viên nhiệt tình, món lên nhanh và hương vị rất tròn. Chắc chắn sẽ quay lại.',
     },
+    {
+        name: 'Thu Hà',
+        visit: 'Tiệc gia đình',
+        quote: 'Đặt bàn rất thuận tiện, nhà hàng hỗ trợ chu đáo từ lúc gọi điện đến khi dùng bữa.',
+    },
+];
+
+const categories = computed(() => [
+    'Tất cả',
+    ...new Set(props.menus.map((menu) => menu.category?.name).filter(Boolean)),
+]);
+
+const filteredMenus = computed(() => {
+    if (activeCategory.value === 'Tất cả') {
+        return props.menus;
+    }
+
+    return props.menus.filter((menu) => menu.category?.name === activeCategory.value);
+});
+
+const bookingForm = useForm({
+    branch_id: props.branches[0]?.id ?? '',
+    customer_name: '',
+    phone: '',
+    reservation_date: '',
+    reservation_time: '',
+    guests: 2,
+    note: '',
+});
+
+const minBookingDate = new Date().toISOString().slice(0, 10);
+const formatPrice = (price) => `${new Intl.NumberFormat('vi-VN').format(Number(price))}đ`;
+const phoneHref = (phone) => `tel:${String(phone || '').replace(/[^\d+]/g, '')}`;
+const mapHref = (address) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address || '')}`;
+const handleBookingPhoneInput = (event) => {
+    bookingForm.phone = event.target.value.replace(/\D/g, '').slice(0, 10);
+};
+
+const selectTab = (tab) => {
+    if (!validTabKeys.includes(tab)) {
+        return;
+    }
+
+    activeTab.value = tab;
+    activeCategory.value = 'Tất cả';
+    window.history.replaceState({}, '', tab === 'home' ? '/' : `/#${tab}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+const syncTabFromHash = () => {
+    const hashTab = tabFromHash();
+    if (validTabKeys.includes(hashTab)) {
+        activeTab.value = hashTab;
+    }
+};
+
+const submitBooking = () => {
+    bookingForm.post(route('reservations.store'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            bookingForm.reset();
+            bookingToastVisible.value = true;
+            clearTimeout(bookingToastTimer);
+            bookingToastTimer = setTimeout(() => {
+                bookingToastVisible.value = false;
+            }, 4500);
+            selectTab('branches');
+        },
+        onError: () => selectTab('branches'),
+    });
+};
+
+onMounted(() => window.addEventListener('hashchange', syncTabFromHash));
+onUnmounted(() => {
+    window.removeEventListener('hashchange', syncTabFromHash);
+    clearTimeout(bookingToastTimer);
 });
 </script>
 
 <template>
-    <Head title="Welcome" />
+    <Head title="Nhà hàng Bếp Việt">
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    </Head>
 
-    <div
-        class="relative sm:flex sm:justify-center sm:items-center min-h-screen bg-dots-darker bg-center bg-gray-100 dark:bg-dots-lighter dark:bg-gray-900 selection:bg-red-500 selection:text-white"
-    >
-        <div v-if="canLogin" class="sm:fixed sm:top-0 sm:right-0 p-6 text-end">
-            <Link
-                v-if="$page.props.auth.user"
-                :href="route('dashboard')"
-                class="font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                >Dashboard</Link
-            >
+    <div class="landing-page min-h-screen overflow-hidden bg-[#fbf8f2] text-[#20332d]">
+        <header class="sticky top-0 z-50 border-b border-[#20332d]/10 bg-[#fbf8f2]/90 backdrop-blur-lg">
+            <div class="mx-auto flex max-w-7xl items-center justify-between gap-5 px-5 py-4 lg:px-8">
+                <a href="#home" class="flex shrink-0 items-center gap-3" aria-label="Bếp Việt - Trang chủ" @click.prevent="selectTab('home')">
+                    <span class="flex h-11 w-11 items-center justify-center rounded-full bg-[#e36c3d] text-white shadow-lg shadow-[#e36c3d]/20">
+                        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M4 12.5c0-3.59 3.58-6.5 8-6.5s8 2.91 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                            <path d="M3 12.5h18M5.5 12.5l1.2 5.14A2.99 2.99 0 0 0 9.62 20h4.76a2.99 2.99 0 0 0 2.92-2.36l1.2-5.14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M12 3v2M8.5 4l.7 1.35M15.5 4l-.7 1.35" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                        </svg>
+                    </span>
+                    <span>
+                        <span class="block text-[10px] font-semibold uppercase tracking-[0.32em] text-[#e36c3d]">Nhà hàng</span>
+                        <span class="block text-xl font-bold tracking-tight">Bếp Việt</span>
+                    </span>
+                </a>
 
-            <template v-else>
-                <Link
-                    :href="route('login')"
-                    class="font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                    >Log in</Link
-                >
+                <nav class="flex items-center gap-1 rounded-full bg-white/70 p-1 shadow-sm" aria-label="Điều hướng chính">
+                    <a
+                        v-for="tab in tabs"
+                        :key="tab.key"
+                        :href="`#${tab.key}`"
+                        class="rounded-full px-3 py-2 text-xs font-bold transition sm:px-4 sm:text-sm"
+                        :class="activeTab === tab.key ? 'bg-[#20332d] text-white shadow-sm' : 'text-[#20332d]/60 hover:text-[#20332d]'"
+                        :aria-current="activeTab === tab.key ? 'page' : undefined"
+                        @click.prevent="selectTab(tab.key)"
+                    >
+                        {{ tab.label }}
+                    </a>
+                </nav>
 
-                <Link
-                    v-if="canRegister"
-                    :href="route('register')"
-                    class="ms-4 font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                    >Register</Link
-                >
-            </template>
+                <button type="button" class="hidden shrink-0 items-center gap-2 rounded-full bg-[#e36c3d] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#c9572b] sm:inline-flex" @click="selectTab('branches')">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M5 4h3l1.5 4-2 1.5a15.5 15.5 0 0 0 7 7l1.5-2 4 1.5v3a1 1 0 0 1-1 1C11.38 20 4 12.62 4 3a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+                    </svg>
+                    Đặt bàn
+                </button>
+            </div>
+        </header>
+
+        <div v-if="bookingToastVisible" class="pointer-events-none fixed right-5 top-5 z-[100] flex w-[min(22rem,calc(100vw-2.5rem))] items-start gap-3 rounded-2xl border border-[#8ca98d]/40 bg-white p-4 text-[#20332d] shadow-2xl shadow-[#20332d]/20" role="status" aria-live="polite">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e2eee3] text-lg font-bold text-[#52765d]">✓</span>
+            <div>
+                <p class="font-bold">Đặt bàn thành công</p>
+                <p class="mt-1 text-sm text-[#20332d]/60">Yêu cầu đã được gửi. Nhà hàng sẽ sớm liên hệ để xác nhận.</p>
+            </div>
         </div>
 
-        <div class="max-w-7xl mx-auto p-6 lg:p-8">
-            <div class="flex justify-center">
-                <svg
-                    viewBox="0 0 62 65"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-16 w-auto bg-gray-100 dark:bg-gray-900"
-                >
-                    <path
-                        d="M61.8548 14.6253C61.8778 14.7102 61.8895 14.7978 61.8897 14.8858V28.5615C61.8898 28.737 61.8434 28.9095 61.7554 29.0614C61.6675 29.2132 61.5409 29.3392 61.3887 29.4265L49.9104 36.0351V49.1337C49.9104 49.4902 49.7209 49.8192 49.4118 49.9987L25.4519 63.7916C25.3971 63.8227 25.3372 63.8427 25.2774 63.8639C25.255 63.8714 25.2338 63.8851 25.2101 63.8913C25.0426 63.9354 24.8666 63.9354 24.6991 63.8913C24.6716 63.8838 24.6467 63.8689 24.6205 63.8589C24.5657 63.8389 24.5084 63.8215 24.456 63.7916L0.501061 49.9987C0.348882 49.9113 0.222437 49.7853 0.134469 49.6334C0.0465019 49.4816 0.000120578 49.3092 0 49.1337L0 8.10652C0 8.01678 0.0124642 7.92953 0.0348998 7.84477C0.0423783 7.8161 0.0598282 7.78993 0.0697995 7.76126C0.0884958 7.70891 0.105946 7.65531 0.133367 7.6067C0.152063 7.5743 0.179485 7.54812 0.20192 7.51821C0.230588 7.47832 0.256763 7.43719 0.290416 7.40229C0.319084 7.37362 0.356476 7.35243 0.388883 7.32751C0.425029 7.29759 0.457436 7.26518 0.498568 7.2415L12.4779 0.345059C12.6296 0.257786 12.8015 0.211853 12.9765 0.211853C13.1515 0.211853 13.3234 0.257786 13.475 0.345059L25.4531 7.2415H25.4556C25.4955 7.26643 25.5292 7.29759 25.5653 7.32626C25.5977 7.35119 25.6339 7.37362 25.6625 7.40104C25.6974 7.43719 25.7224 7.47832 25.7523 7.51821C25.7735 7.54812 25.8021 7.5743 25.8196 7.6067C25.8483 7.65656 25.8645 7.70891 25.8844 7.76126C25.8944 7.78993 25.9118 7.8161 25.9193 7.84602C25.9423 7.93096 25.954 8.01853 25.9542 8.10652V33.7317L35.9355 27.9844V14.8846C35.9355 14.7973 35.948 14.7088 35.9704 14.6253C35.9792 14.5954 35.9954 14.5692 36.0053 14.5405C36.0253 14.4882 36.0427 14.4346 36.0702 14.386C36.0888 14.3536 36.1163 14.3274 36.1375 14.2975C36.1674 14.2576 36.1923 14.2165 36.2272 14.1816C36.2559 14.1529 36.292 14.1317 36.3244 14.1068C36.3618 14.0769 36.3942 14.0445 36.4341 14.0208L48.4147 7.12434C48.5663 7.03694 48.7383 6.99094 48.9133 6.99094C49.0883 6.99094 49.2602 7.03694 49.4118 7.12434L61.3899 14.0208C61.4323 14.0457 61.4647 14.0769 61.5021 14.1055C61.5333 14.1305 61.5694 14.1529 61.5981 14.1803C61.633 14.2165 61.6579 14.2576 61.6878 14.2975C61.7103 14.3274 61.7377 14.3536 61.7551 14.386C61.7838 14.4346 61.8 14.4882 61.8199 14.5405C61.8312 14.5692 61.8474 14.5954 61.8548 14.6253ZM59.893 27.9844V16.6121L55.7013 19.0252L49.9104 22.3593V33.7317L59.8942 27.9844H59.893ZM47.9149 48.5566V37.1768L42.2187 40.4299L25.953 49.7133V61.2003L47.9149 48.5566ZM1.99677 9.83281V48.5566L23.9562 61.199V49.7145L12.4841 43.2219L12.4804 43.2194L12.4754 43.2169C12.4368 43.1945 12.4044 43.1621 12.3682 43.1347C12.3371 43.1097 12.3009 43.0898 12.2735 43.0624L12.271 43.0586C12.2386 43.0275 12.2162 42.9888 12.1887 42.9539C12.1638 42.9203 12.1339 42.8916 12.114 42.8567L12.1127 42.853C12.0903 42.8156 12.0766 42.7707 12.0604 42.7283C12.0442 42.6909 12.023 42.656 12.013 42.6161C12.0005 42.5688 11.998 42.5177 11.9931 42.4691C11.9881 42.4317 11.9781 42.3943 11.9781 42.3569V15.5801L6.18848 12.2446L1.99677 9.83281ZM12.9777 2.36177L2.99764 8.10652L12.9752 13.8513L22.9541 8.10527L12.9752 2.36177H12.9777ZM18.1678 38.2138L23.9574 34.8809V9.83281L19.7657 12.2459L13.9749 15.5801V40.6281L18.1678 38.2138ZM48.9133 9.14105L38.9344 14.8858L48.9133 20.6305L58.8909 14.8846L48.9133 9.14105ZM47.9149 22.3593L42.124 19.0252L37.9323 16.6121V27.9844L43.7219 31.3174L47.9149 33.7317V22.3593ZM24.9533 47.987L39.59 39.631L46.9065 35.4555L36.9352 29.7145L25.4544 36.3242L14.9907 42.3482L24.9533 47.987Z"
-                        fill="#FF2D20"
-                    />
-                </svg>
-            </div>
+        <main>
+            <section v-if="activeTab === 'home'" class="relative isolate">
+                <div class="pointer-events-none absolute -left-32 top-20 -z-10 h-72 w-72 rounded-full bg-[#e36c3d]/10 blur-3xl"></div>
+                <div class="pointer-events-none absolute -right-24 top-0 -z-10 h-96 w-96 rounded-full bg-[#8ca98d]/20 blur-3xl"></div>
 
-            <div class="mt-16">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-                    <a
-                        href="https://laravel.com/docs"
-                        class="scale-100 p-6 bg-white dark:bg-gray-800/50 dark:bg-gradient-to-bl from-gray-700/50 via-transparent dark:ring-1 dark:ring-inset dark:ring-white/5 rounded-lg shadow-2xl shadow-gray-500/20 dark:shadow-none flex motion-safe:hover:scale-[1.01] transition-all duration-250 focus:outline focus:outline-2 focus:outline-red-500"
-                    >
-                        <div>
-                            <div
-                                class="h-16 w-16 bg-red-50 dark:bg-red-800/20 flex items-center justify-center rounded-full"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke-width="1.5"
-                                    class="w-7 h-7 stroke-red-500"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"
-                                    />
-                                </svg>
-                            </div>
-
-                            <h2 class="mt-6 text-xl font-semibold text-gray-900 dark:text-white">Documentation</h2>
-
-                            <p class="mt-4 text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
-                                Laravel has wonderful documentation covering every aspect of the framework. Whether you
-                                are a newcomer or have prior experience with Laravel, we recommend reading our
-                                documentation from beginning to end.
-                            </p>
+                <div class="mx-auto grid max-w-7xl items-center gap-14 px-5 pb-16 pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:pb-24 lg:pt-24">
+                    <div>
+                        <div class="mb-6 inline-flex items-center gap-2 rounded-full border border-[#e36c3d]/20 bg-white/70 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-[#e36c3d]">
+                            <span class="h-1.5 w-1.5 rounded-full bg-[#e36c3d]"></span>
+                            Vị ngon Việt, trọn khoảnh khắc
                         </div>
-
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke-width="1.5"
-                            class="self-center shrink-0 stroke-red-500 w-6 h-6 mx-6"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"
-                            />
-                        </svg>
-                    </a>
-
-                    <a
-                        href="https://laracasts.com"
-                        class="scale-100 p-6 bg-white dark:bg-gray-800/50 dark:bg-gradient-to-bl from-gray-700/50 via-transparent dark:ring-1 dark:ring-inset dark:ring-white/5 rounded-lg shadow-2xl shadow-gray-500/20 dark:shadow-none flex motion-safe:hover:scale-[1.01] transition-all duration-250 focus:outline focus:outline-2 focus:outline-red-500"
-                    >
-                        <div>
-                            <div
-                                class="h-16 w-16 bg-red-50 dark:bg-red-800/20 flex items-center justify-center rounded-full"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke-width="1.5"
-                                    class="w-7 h-7 stroke-red-500"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z"
-                                    />
-                                </svg>
-                            </div>
-
-                            <h2 class="mt-6 text-xl font-semibold text-gray-900 dark:text-white">Laracasts</h2>
-
-                            <p class="mt-4 text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
-                                Laracasts offers thousands of video tutorials on Laravel, PHP, and JavaScript
-                                development. Check them out, see for yourself, and massively level up your development
-                                skills in the process.
-                            </p>
+                        <h1 class="max-w-3xl text-5xl font-bold leading-[1.05] tracking-tight text-[#20332d] sm:text-6xl lg:text-7xl">
+                            Mâm cơm thân quen,
+                            <span class="block text-[#e36c3d]">vị ngon đáng nhớ.</span>
+                        </h1>
+                        <p class="mt-7 max-w-xl text-lg leading-8 text-[#20332d]/65">
+                            Bếp Việt mang những món ăn gần gũi của mâm cơm Việt đến không gian ấm cúng, nơi mọi cuộc gặp gỡ đều trở nên trọn vẹn hơn.
+                        </p>
+                        <div class="mt-9 flex flex-wrap items-center gap-3">
+                            <button type="button" class="rounded-full bg-[#e36c3d] px-6 py-3.5 text-sm font-bold text-white shadow-xl shadow-[#e36c3d]/20 transition hover:-translate-y-0.5 hover:bg-[#c9572b]" @click="selectTab('branches')">Tìm cơ sở gần bạn</button>
+                            <button type="button" class="rounded-full border border-[#20332d]/15 bg-white/60 px-6 py-3.5 text-sm font-bold text-[#20332d] transition hover:border-[#20332d]/30 hover:bg-white" @click="selectTab('menu')">Xem thực đơn</button>
                         </div>
-
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke-width="1.5"
-                            class="self-center shrink-0 stroke-red-500 w-6 h-6 mx-6"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"
-                            />
-                        </svg>
-                    </a>
-
-                    <a
-                        href="https://laravel-news.com"
-                        class="scale-100 p-6 bg-white dark:bg-gray-800/50 dark:bg-gradient-to-bl from-gray-700/50 via-transparent dark:ring-1 dark:ring-inset dark:ring-white/5 rounded-lg shadow-2xl shadow-gray-500/20 dark:shadow-none flex motion-safe:hover:scale-[1.01] transition-all duration-250 focus:outline focus:outline-2 focus:outline-red-500"
-                    >
-                        <div>
-                            <div
-                                class="h-16 w-16 bg-red-50 dark:bg-red-800/20 flex items-center justify-center rounded-full"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke-width="1.5"
-                                    class="w-7 h-7 stroke-red-500"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25M16.5 7.5V18a2.25 2.25 0 002.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 002.25 2.25h13.5M6 7.5h3v3H6v-3z"
-                                    />
-                                </svg>
-                            </div>
-
-                            <h2 class="mt-6 text-xl font-semibold text-gray-900 dark:text-white">Laravel News</h2>
-
-                            <p class="mt-4 text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
-                                Laravel News is a community driven portal and newsletter aggregating all of the latest
-                                and most important news in the Laravel ecosystem, including new package releases and
-                                tutorials.
-                            </p>
+                        <div class="mt-12 flex flex-wrap gap-x-10 gap-y-4 border-t border-[#20332d]/10 pt-6">
+                            <div><p class="text-2xl font-bold text-[#20332d]">{{ menus.length }}+</p><p class="mt-1 text-xs font-semibold uppercase tracking-wider text-[#20332d]/50">Món ngon mỗi ngày</p></div>
+                            <div><p class="text-2xl font-bold text-[#20332d]">{{ branches.length }}</p><p class="mt-1 text-xs font-semibold uppercase tracking-wider text-[#20332d]/50">Cơ sở phục vụ</p></div>
+                            <div><p class="text-2xl font-bold text-[#20332d]">100%</p><p class="mt-1 text-xs font-semibold uppercase tracking-wider text-[#20332d]/50">Tươi ngon mỗi ngày</p></div>
                         </div>
+                    </div>
 
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke-width="1.5"
-                            class="self-center shrink-0 stroke-red-500 w-6 h-6 mx-6"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"
-                            />
-                        </svg>
-                    </a>
-
-                    <div
-                        class="scale-100 p-6 bg-white dark:bg-gray-800/50 dark:bg-gradient-to-bl from-gray-700/50 via-transparent dark:ring-1 dark:ring-inset dark:ring-white/5 rounded-lg shadow-2xl shadow-gray-500/20 dark:shadow-none flex motion-safe:hover:scale-[1.01] transition-all duration-250 focus:outline focus:outline-2 focus:outline-red-500"
-                    >
-                        <div>
-                            <div
-                                class="h-16 w-16 bg-red-50 dark:bg-red-800/20 flex items-center justify-center rounded-full"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke-width="1.5"
-                                    class="w-7 h-7 stroke-red-500"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M6.115 5.19l.319 1.913A6 6 0 008.11 10.36L9.75 12l-.387.775c-.217.433-.132.956.21 1.298l1.348 1.348c.21.21.329.497.329.795v1.089c0 .426.24.815.622 1.006l.153.076c.433.217.956.132 1.298-.21l.723-.723a8.7 8.7 0 002.288-4.042 1.087 1.087 0 00-.358-1.099l-1.33-1.108c-.251-.21-.582-.299-.905-.245l-1.17.195a1.125 1.125 0 01-.98-.314l-.295-.295a1.125 1.125 0 010-1.591l.13-.132a1.125 1.125 0 011.3-.21l.603.302a.809.809 0 001.086-1.086L14.25 7.5l1.256-.837a4.5 4.5 0 001.528-1.732l.146-.292M6.115 5.19A9 9 0 1017.18 4.64M6.115 5.19A8.965 8.965 0 0112 3c1.929 0 3.716.607 5.18 1.64"
-                                    />
-                                </svg>
+                    <div class="relative mx-auto w-full max-w-[540px]">
+                        <div class="absolute -right-3 top-10 h-28 w-28 rounded-full border border-[#e36c3d]/25"></div>
+                        <div class="absolute -bottom-5 -left-5 h-24 w-24 rounded-full border border-[#20332d]/15"></div>
+                        <div class="relative overflow-hidden rounded-[2.5rem] bg-[#20332d] p-5 shadow-2xl shadow-[#20332d]/20 sm:p-7">
+                            <div class="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[#8ca98d]/20 blur-2xl"></div>
+                            <div class="relative flex items-center justify-between text-white/70"><span class="text-xs font-semibold uppercase tracking-[0.25em]">Bếp Việt / 01</span><span class="rounded-full border border-white/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider">Since 2024</span></div>
+                            <div class="relative mx-auto my-10 flex aspect-square max-w-[330px] items-center justify-center rounded-full bg-[#e6d6bb] shadow-inner shadow-black/10">
+                                <div class="absolute inset-5 rounded-full border border-[#20332d]/10"></div>
+                                <div class="relative flex h-48 w-48 items-center justify-center rounded-full bg-[#f5eee3] shadow-[0_20px_35px_rgba(32,51,45,0.16)]">
+                                    <div class="absolute left-12 top-14 h-10 w-16 rotate-12 rounded-[50%] bg-[#d8663b] shadow-[18px_22px_0_#e7a15b,-17px_27px_0_#75906d]"></div>
+                                    <div class="absolute bottom-12 right-10 h-8 w-8 rounded-full bg-[#e7a15b] shadow-[-40px_6px_0_#75906d,25px_12px_0_#d8663b]"></div>
+                                    <span class="relative z-10 text-3xl font-bold text-[#20332d]">Bếp Việt</span>
+                                </div>
                             </div>
-
-                            <h2 class="mt-6 text-xl font-semibold text-gray-900 dark:text-white">Vibrant Ecosystem</h2>
-
-                            <p class="mt-4 text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
-                                Laravel's robust library of first-party tools and libraries, such as
-                                <a
-                                    href="https://forge.laravel.com"
-                                    class="underline hover:text-gray-700 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                                    >Forge</a
-                                >,
-                                <a
-                                    href="https://vapor.laravel.com"
-                                    class="underline hover:text-gray-700 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                                    >Vapor</a
-                                >,
-                                <a
-                                    href="https://nova.laravel.com"
-                                    class="underline hover:text-gray-700 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                                    >Nova</a
-                                >, and
-                                <a
-                                    href="https://envoyer.io"
-                                    class="underline hover:text-gray-700 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                                    >Envoyer</a
-                                >
-                                help you take your projects to the next level. Pair them with powerful open source
-                                libraries like
-                                <a
-                                    href="https://laravel.com/docs/billing"
-                                    class="underline hover:text-gray-700 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                                    >Cashier</a
-                                >,
-                                <a
-                                    href="https://laravel.com/docs/dusk"
-                                    class="underline hover:text-gray-700 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                                    >Dusk</a
-                                >,
-                                <a
-                                    href="https://laravel.com/docs/broadcasting"
-                                    class="underline hover:text-gray-700 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                                    >Echo</a
-                                >,
-                                <a
-                                    href="https://laravel.com/docs/horizon"
-                                    class="underline hover:text-gray-700 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                                    >Horizon</a
-                                >,
-                                <a
-                                    href="https://laravel.com/docs/sanctum"
-                                    class="underline hover:text-gray-700 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                                    >Sanctum</a
-                                >,
-                                <a
-                                    href="https://laravel.com/docs/telescope"
-                                    class="underline hover:text-gray-700 dark:hover:text-white focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                                    >Telescope</a
-                                >, and more.
-                            </p>
+                            <div class="relative flex items-end justify-between"><div><p class="text-2xl font-bold text-white">Ăn ngon, sống vui</p><p class="mt-1 text-sm text-white/55">Một chút thân quen trong mỗi món ăn</p></div><span class="mb-1 text-3xl text-[#e7a15b]">✦</span></div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="flex justify-center mt-16 px-6 sm:items-center sm:justify-between">
-                <div class="text-center text-sm sm:text-start">&nbsp;</div>
-
-                <div class="text-center text-sm text-gray-500 dark:text-gray-400 sm:text-end sm:ms-0">
-                    Laravel v{{ laravelVersion }} (PHP v{{ phpVersion }})
+                <div class="border-y border-[#20332d]/10 bg-white/60">
+                    <div class="mx-auto grid max-w-7xl gap-6 px-5 py-8 sm:grid-cols-3 lg:px-8">
+                        <div class="flex items-start gap-4"><span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#f8e4d8] text-[#e36c3d]"><span class="text-xl">✦</span></span><div><p class="font-bold">Nguyên liệu tươi</p><p class="mt-1 text-sm text-[#20332d]/55">Chọn lọc mỗi ngày</p></div></div>
+                        <div class="flex items-start gap-4"><span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#e2eee3] text-[#52765d]"><span class="text-xl">✓</span></span><div><p class="font-bold">Phục vụ tận tâm</p><p class="mt-1 text-sm text-[#20332d]/55">Đón tiếp như người nhà</p></div></div>
+                        <div class="flex items-start gap-4"><span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#f4edcf] text-[#b58a27]"><span class="text-xl">★</span></span><div><p class="font-bold">Không gian ấm cúng</p><p class="mt-1 text-sm text-[#20332d]/55">Gặp gỡ thêm đáng nhớ</p></div></div>
+                    </div>
                 </div>
-            </div>
-        </div>
+
+                <div class="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-24">
+                    <div class="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
+                        <div><p class="text-xs font-bold uppercase tracking-[0.25em] text-[#e36c3d]">Câu chuyện Bếp Việt</p><h2 class="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">Một nơi để trở về.</h2></div>
+                        <p class="max-w-2xl text-base leading-7 text-[#20332d]/65">Chúng tôi tin rằng một bữa ăn ngon bắt đầu từ nguyên liệu tử tế và kết thúc bằng những câu chuyện vui. Bếp Việt giữ lại hương vị thân quen, thêm một không gian chỉn chu để mỗi lần gặp nhau đều đáng nhớ.</p>
+                    </div>
+                </div>
+
+                <div class="bg-[#f2e8d9] px-5 py-20 lg:py-24">
+                    <div class="mx-auto max-w-7xl lg:px-8">
+                        <div class="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p class="text-xs font-bold uppercase tracking-[0.25em] text-[#e36c3d]">Khách hàng nói gì</p><h2 class="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">Bữa ngon, lời thật.</h2></div><p class="max-w-sm text-sm leading-6 text-[#20332d]/60">Niềm vui của khách hàng là phần đặc biệt nhất trong mỗi ngày phục vụ của Bếp.</p></div>
+                        <div class="mt-10 grid gap-5 md:grid-cols-3">
+                            <article v-for="review in reviews" :key="review.name" class="rounded-3xl bg-white p-6 shadow-sm sm:p-7"><div class="flex gap-1 text-[#e7a15b]" aria-label="5 trên 5 sao">★★★★★</div><p class="mt-5 leading-7 text-[#20332d]/70">“{{ review.quote }}”</p><div class="mt-7 border-t border-[#20332d]/10 pt-4"><p class="font-bold">{{ review.name }}</p><p class="mt-1 text-xs font-semibold uppercase tracking-wider text-[#20332d]/45">{{ review.visit }}</p></div></article>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section v-else-if="activeTab === 'branches'" class="mx-auto max-w-7xl px-5 py-16 lg:px-8 lg:py-24">
+                <div class="max-w-2xl"><p class="text-xs font-bold uppercase tracking-[0.25em] text-[#e36c3d]">Ghé thăm chúng tôi</p><h1 class="mt-3 text-5xl font-bold tracking-tight sm:text-6xl">Cơ sở & đặt bàn</h1><p class="mt-6 text-lg leading-8 text-[#20332d]/65">Chọn cơ sở thuận tiện nhất, xem vị trí và gửi thông tin đặt bàn. Nhà hàng sẽ gọi lại để xác nhận.</p></div>
+
+                <div class="mt-12 grid gap-5 lg:grid-cols-2">
+                    <article v-for="(branch, index) in branches" :key="branch.id" class="group relative overflow-hidden rounded-3xl border border-[#20332d]/10 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-[#20332d]/10 sm:p-8">
+                        <div class="absolute right-0 top-0 h-32 w-32 rounded-bl-[5rem] bg-[#e2eee3] transition group-hover:bg-[#f8e4d8]"></div>
+                        <div class="relative"><div class="flex items-start justify-between"><span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#20332d] text-xl font-bold text-white">0{{ index + 1 }}</span><span class="rounded-full bg-[#e2eee3] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#52765d]">Đang phục vụ</span></div><h2 class="mt-8 text-2xl font-bold">{{ branch.name }}</h2>
+                            <div class="mt-5 space-y-4 text-sm text-[#20332d]/65"><p class="flex items-start gap-3"><span class="mt-0.5 text-lg text-[#e36c3d]">⌖</span><span>{{ branch.address || 'Thông tin địa chỉ đang cập nhật' }}</span></p><p v-if="branch.phone" class="flex items-center gap-3"><span class="text-lg text-[#e36c3d]">☎</span><a :href="phoneHref(branch.phone)" class="font-bold text-[#20332d] hover:text-[#e36c3d]">{{ branch.phone }}</a></p></div>
+                            <div class="mt-8 flex flex-wrap gap-3"><a v-if="branch.address" :href="mapHref(branch.address)" target="_blank" rel="noopener noreferrer" class="rounded-full border border-[#20332d]/15 px-4 py-2 text-sm font-bold text-[#20332d] transition hover:border-[#e36c3d] hover:text-[#e36c3d]">Xem vị trí ↗</a><a v-if="branch.phone" :href="phoneHref(branch.phone)" class="rounded-full bg-[#e36c3d] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#c9572b]">Gọi đặt bàn</a></div>
+                        </div>
+                    </article>
+                    <div v-if="!branches.length" class="rounded-3xl border border-dashed border-[#20332d]/20 p-8 text-center text-[#20332d]/60 lg:col-span-2">Thông tin cơ sở đang được cập nhật.</div>
+                </div>
+
+                <div class="mt-14 rounded-[2rem] bg-[#20332d] p-6 text-white shadow-2xl shadow-[#20332d]/15 sm:p-10">
+                    <div class="grid gap-10 lg:grid-cols-[0.7fr_1.3fr] lg:items-start"><div><p class="text-xs font-bold uppercase tracking-[0.25em] text-[#e7a15b]">Giữ chỗ cho bạn</p><h2 class="mt-3 text-4xl font-bold tracking-tight">Gửi thông tin đặt bàn</h2><p class="mt-5 text-sm leading-6 text-white/60">Điền thông tin, chúng tôi sẽ liên hệ lại để xác nhận bàn và thời gian phù hợp.</p></div>
+                        <form class="grid gap-4 sm:grid-cols-2" @submit.prevent="submitBooking">
+                            <div class="sm:col-span-2"><label for="booking-branch" class="mb-2 block text-sm font-semibold text-white/80">Cơ sở *</label><select id="booking-branch" v-model="bookingForm.branch_id" class="w-full rounded-xl border-white/10 bg-white/10 px-4 py-3 text-sm text-white focus:border-[#e7a15b] focus:ring-[#e7a15b]" required><option v-for="branch in branches" :key="branch.id" :value="branch.id" class="text-[#20332d]">{{ branch.name }}</option></select><p v-if="bookingForm.errors.branch_id" class="mt-1 text-xs text-rose-300">{{ bookingForm.errors.branch_id }}</p></div>
+                            <div><label for="booking-name" class="mb-2 block text-sm font-semibold text-white/80">Họ và tên *</label><input id="booking-name" v-model="bookingForm.customer_name" type="text" autocomplete="name" class="w-full rounded-xl border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-[#e7a15b] focus:ring-[#e7a15b]" placeholder="Nguyễn Văn A" required /><p v-if="bookingForm.errors.customer_name" class="mt-1 text-xs text-rose-300">{{ bookingForm.errors.customer_name }}</p></div>
+                            <div><label for="booking-phone" class="mb-2 block text-sm font-semibold text-white/80">Số điện thoại *</label><input id="booking-phone" v-model="bookingForm.phone" @input="handleBookingPhoneInput" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" class="w-full rounded-xl border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-[#e7a15b] focus:ring-[#e7a15b]" placeholder="0901234567" required /><p v-if="bookingForm.errors.phone" class="mt-1 text-xs text-rose-300">{{ bookingForm.errors.phone }}</p></div>
+                            <div><label for="booking-date" class="mb-2 block text-sm font-semibold text-white/80">Ngày đặt *</label><input id="booking-date" v-model="bookingForm.reservation_date" :min="minBookingDate" type="date" class="w-full rounded-xl border-white/10 bg-white/10 px-4 py-3 text-sm text-white focus:border-[#e7a15b] focus:ring-[#e7a15b]" required /><p v-if="bookingForm.errors.reservation_date" class="mt-1 text-xs text-rose-300">{{ bookingForm.errors.reservation_date }}</p></div>
+                            <div><label for="booking-time" class="mb-2 block text-sm font-semibold text-white/80">Giờ dùng bữa *</label><input id="booking-time" v-model="bookingForm.reservation_time" type="time" class="w-full rounded-xl border-white/10 bg-white/10 px-4 py-3 text-sm text-white focus:border-[#e7a15b] focus:ring-[#e7a15b]" required /><p v-if="bookingForm.errors.reservation_time" class="mt-1 text-xs text-rose-300">{{ bookingForm.errors.reservation_time }}</p></div>
+                            <div><label for="booking-guests" class="mb-2 block text-sm font-semibold text-white/80">Số khách *</label><input id="booking-guests" v-model="bookingForm.guests" min="1" max="30" type="number" class="w-full rounded-xl border-white/10 bg-white/10 px-4 py-3 text-sm text-white focus:border-[#e7a15b] focus:ring-[#e7a15b]" required /><p v-if="bookingForm.errors.guests" class="mt-1 text-xs text-rose-300">{{ bookingForm.errors.guests }}</p></div>
+                            <div class="sm:col-span-2"><label for="booking-note" class="mb-2 block text-sm font-semibold text-white/80">Ghi chú</label><textarea id="booking-note" v-model="bookingForm.note" rows="3" class="w-full rounded-xl border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-white/35 focus:border-[#e7a15b] focus:ring-[#e7a15b]" placeholder="Ví dụ: bàn gần cửa sổ, sinh nhật..."></textarea><p v-if="bookingForm.errors.note" class="mt-1 text-xs text-rose-300">{{ bookingForm.errors.note }}</p></div>
+                            <div class="flex items-center justify-between gap-4 sm:col-span-2"><p class="text-xs text-white/40">Thông tin dùng để xác nhận đặt bàn.</p><button type="submit" :disabled="bookingForm.processing || !branches.length" class="rounded-full bg-[#e36c3d] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#c9572b] disabled:cursor-not-allowed disabled:opacity-50">{{ bookingForm.processing ? 'Đang gửi...' : 'Gửi yêu cầu' }}</button></div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <section v-else class="bg-[#20332d] px-5 py-16 text-white lg:py-24">
+                <div class="mx-auto max-w-7xl lg:px-8"><div class="flex flex-col justify-between gap-7 sm:flex-row sm:items-end"><div><p class="text-xs font-bold uppercase tracking-[0.25em] text-[#e7a15b]">Món ngon mỗi ngày</p><h1 class="mt-3 text-5xl font-bold tracking-tight sm:text-6xl">Menu của Bếp</h1></div><p class="max-w-sm text-sm leading-6 text-white/60">Từ món khai vị nhẹ nhàng đến những món chính đậm đà hương vị quê nhà.</p></div>
+                    <div class="mt-10 flex gap-2 overflow-x-auto pb-2" aria-label="Lọc danh mục món ăn"><button v-for="category in categories" :key="category" type="button" class="shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition" :class="activeCategory === category ? 'bg-[#e36c3d] text-white' : 'bg-white/10 text-white/65 hover:bg-white/15 hover:text-white'" @click="activeCategory = category">{{ category }}</button></div>
+                    <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><article v-for="menu in filteredMenus" :key="menu.id" class="group rounded-2xl border border-white/10 bg-white/[0.06] p-5 transition hover:border-[#e7a15b]/40 hover:bg-white/[0.1]"><div class="flex items-start justify-between gap-4"><div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#e7a15b]/15 text-xl font-bold text-[#e7a15b]">{{ menu.name?.charAt(0) }}</div><div class="flex flex-wrap justify-end gap-1.5"><span v-if="menu.is_best_seller" class="rounded-full bg-[#e36c3d] px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-white">Bán chạy</span><span v-if="menu.is_must_try" class="rounded-full bg-[#e7a15b] px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-[#20332d]">Nên thử</span></div></div><p class="mt-5 text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">{{ menu.category?.name || 'Món ăn' }}</p><h2 class="mt-2 text-xl font-bold">{{ menu.name }}</h2><p class="mt-2 min-h-10 text-sm leading-5 text-white/55">{{ menu.description || 'Hương vị đặc trưng được chuẩn bị mỗi ngày.' }}</p><p class="mt-5 text-lg font-bold text-[#e7a15b]">{{ formatPrice(menu.price) }}</p></article><div v-if="!filteredMenus.length" class="rounded-2xl border border-dashed border-white/20 p-8 text-center text-white/60 sm:col-span-2 lg:col-span-3">Thực đơn đang được cập nhật.</div></div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="border-t border-[#20332d]/10 bg-white/50"><div class="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-8 text-sm text-[#20332d]/55 sm:flex-row sm:items-center sm:justify-between lg:px-8"><button type="button" class="flex items-center gap-2 text-lg font-bold text-[#20332d]" @click="selectTab('home')"><span class="h-2 w-2 rounded-full bg-[#e36c3d]"></span>Bếp Việt</button><p>© {{ new Date().getFullYear() }} Bếp Việt. Hẹn gặp bạn bên mâm cơm thân quen.</p></div></footer>
     </div>
 </template>
 
-<style>
-.bg-dots-darker {
-    background-image: url("data:image/svg+xml,%3Csvg width='30' height='30' viewBox='0 0 30 30' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.22676 0C1.91374 0 2.45351 0.539773 2.45351 1.22676C2.45351 1.91374 1.91374 2.45351 1.22676 2.45351C0.539773 2.45351 0 1.91374 0 1.22676C0 0.539773 0.539773 0 1.22676 0Z' fill='rgba(0,0,0,0.07)'/%3E%3C/svg%3E");
-}
-@media (prefers-color-scheme: dark) {
-    .dark\:bg-dots-lighter {
-        background-image: url("data:image/svg+xml,%3Csvg width='30' height='30' viewBox='0 0 30 30' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.22676 0C1.91374 0 2.45351 0.539773 2.45351 1.22676C2.45351 1.91374 1.91374 2.45351 1.22676 2.45351C0.539773 2.45351 0 1.91374 0 1.22676C0 0.539773 0.539773 0 1.22676 0Z' fill='rgba(255,255,255,0.07)'/%3E%3C/svg%3E");
-    }
+<style scoped>
+.landing-page {
+    font-family: 'Roboto', sans-serif;
 }
 </style>

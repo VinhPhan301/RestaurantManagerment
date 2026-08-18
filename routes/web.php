@@ -7,11 +7,13 @@ use App\Http\Controllers\KitchenController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReservationRequestController;
 use App\Http\Controllers\StaffAuthController;
 use App\Http\Controllers\StaffPosController;
 use App\Http\Controllers\TableController;
 use App\Http\Controllers\UserController;
-use Illuminate\Foundation\Application;
+use App\Models\Branch;
+use App\Models\Menu;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -28,12 +30,23 @@ use Inertia\Inertia;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
+        'branches' => Branch::query()
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->get(['id', 'name', 'address', 'phone']),
+        'menus' => Menu::query()
+            ->with('category:id,name')
+            ->where('is_available', true)
+            ->orderByDesc('is_best_seller')
+            ->orderByDesc('is_must_try')
+            ->orderBy('category_id')
+            ->orderBy('id')
+            ->get(['id', 'category_id', 'name', 'description', 'price', 'is_best_seller', 'is_must_try']),
     ]);
-});
+})->name('home');
+
+Route::post('/reservations', [ReservationRequestController::class, 'store'])
+    ->name('reservations.store');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -60,6 +73,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('menus', MenuController::class);
         Route::resource('orders', OrderController::class);
         Route::resource('tables', TableController::class);
+        Route::get('/reservations', [ReservationRequestController::class, 'index'])->name('reservations.index');
+        Route::patch('/reservations/{id}/status', [ReservationRequestController::class, 'updateStatus'])->name('reservations.status');
 
         Route::post('/logout', [AdminAuthController::class, 'destroy'])->name('logout');
     });
