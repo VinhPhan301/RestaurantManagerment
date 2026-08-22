@@ -23,7 +23,12 @@ class TableController extends Controller
             $query->where('branch_id', $branchId);
         }
 
-        $tables = $query->get()->map(function (Table $table) {
+        $tables = $query
+            ->orderBy('id')
+            ->paginate(10)
+            ->withQueryString();
+
+        $tables->getCollection()->transform(function (Table $table) {
             return [
                 'id' => $table->id,
                 'branch_id' => $table->branch_id,

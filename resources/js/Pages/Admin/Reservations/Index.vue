@@ -169,7 +169,16 @@ const statusClass = (status) => ({
 
         <div class="overflow-hidden rounded-lg bg-white shadow">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
+                <table class="admin-list-table">
+                    <colgroup>
+                        <col style="width: 18%;" />
+                        <col style="width: 16%;" />
+                        <col style="width: 14%;" />
+                        <col style="width: 8%;" />
+                        <col style="width: 10%;" />
+                        <col style="width: 14%;" />
+                        <col style="width: 20%;" />
+                    </colgroup>
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Khách hàng</th>
@@ -183,18 +192,18 @@ const statusClass = (status) => ({
                     </thead>
                     <tbody class="divide-y divide-gray-200 bg-white">
                         <tr v-for="reservation in requests" :key="reservation.id" class="align-top">
-                            <td class="whitespace-nowrap px-5 py-4">
+                            <td class="px-5 py-4">
                                 <p class="font-semibold text-gray-900">{{ reservation.customer_name }}</p>
                                 <a :href="`tel:${reservation.phone}`" class="mt-1 block text-sm text-blue-600 hover:text-blue-800">{{ reservation.phone }}</a>
                                 <p class="mt-1 text-xs text-gray-400">Gửi lúc {{ reservation.created_at }}</p>
                             </td>
-                            <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700">
+                            <td class="px-5 py-4 text-sm text-gray-700">
                                 <p class="font-semibold">{{ reservation.reservation_date }}</p>
                                 <p class="mt-1 text-gray-500">{{ reservation.reservation_time }}</p>
                             </td>
-                            <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700">{{ reservation.branch?.name || '-' }}</td>
-                            <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700">{{ reservation.guests }} người</td>
-                            <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700">
+                            <td class="px-5 py-4 text-sm text-gray-700">{{ reservation.branch?.name || '-' }}</td>
+                            <td class="px-5 py-4 text-sm text-gray-700">{{ reservation.guests }} người</td>
+                            <td class="px-5 py-4 text-sm text-gray-700">
                                 <template v-if="reservation.table">
                                     <p class="font-semibold text-gray-900">{{ reservation.table.name }}</p>
                                     <p class="mt-1 text-xs text-gray-500">{{ reservation.table.capacity }} chỗ</p>
@@ -202,7 +211,7 @@ const statusClass = (status) => ({
                                 <span v-else>-</span>
                             </td>
                             <td class="max-w-xs px-5 py-4 text-sm text-gray-500">{{ reservation.note || 'Không có ghi chú' }}</td>
-                            <td class="min-w-[190px] px-5 py-4">
+                            <td class="px-5 py-4">
                                 <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClass(reservation.status)">{{ statusText(reservation.status) }}</span>
                                 <div v-if="reservation.status === 'pending'" class="mt-3 flex flex-col items-start gap-2">
                                     <button type="button" class="rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" :disabled="statusForm.processing && updatingId === reservation.id" @click="openConfirmModal(reservation)">

@@ -29,6 +29,17 @@ class MenuController extends Controller
             $query->where('branch_id', $branchId);
         }
 
+        $categoryId = $request->query('category_id');
+        $search = trim((string) $request->query('search', ''));
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        if ($search !== '') {
+            $query->where('name', 'like', "%{$search}%");
+        }
+
         $menus = $query->get();
         $categories = Category::all();
         $branches = $this->availableBranches($request);
@@ -39,6 +50,8 @@ class MenuController extends Controller
             'branches' => $branches,
             'filters' => [
                 'branch_id' => $branchId,
+                'category_id' => $categoryId,
+                'search' => $search,
             ],
         ]);
     }

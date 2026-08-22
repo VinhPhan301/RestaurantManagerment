@@ -17,6 +17,7 @@ class UserController extends Controller
     public function index(Request $request): Response
     {
         $branchId = $this->scopeBranchId($request);
+        $search = trim((string) $request->query('search', ''));
 
         $query = User::whereIn('role', ['manager', 'staff']);
 
@@ -24,7 +25,18 @@ class UserController extends Controller
             $query->where('branch_id', $branchId);
         }
 
-        $users = $query->with('branch')->get();
+        if ($search !== '') {
+            $query->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query
+            ->with('branch')
+            ->orderBy('name')
+            ->paginate(10)
+            ->withQueryString();
         $branches = $this->availableBranches($request);
 
         return Inertia::render('Admin/Users/Index', [
@@ -32,6 +44,7 @@ class UserController extends Controller
             'branches' => $branches,
             'filters' => [
                 'branch_id' => $branchId,
+                'search' => $search,
             ],
         ]);
     }

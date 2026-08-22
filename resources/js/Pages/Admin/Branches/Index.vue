@@ -84,7 +84,14 @@ const toggleStatus = (branch) => {
             </button>
         </div>
             <div class="bg-white shadow rounded-lg overflow-hidden">
-                <table class="min-w-full divide-y divide-gray-200">
+                <table class="admin-list-table">
+                    <colgroup>
+                        <col style="width: 20%;" />
+                        <col style="width: 30%;" />
+                        <col style="width: 16%;" />
+                        <col style="width: 16%;" />
+                        <col style="width: 18%;" />
+                    </colgroup>
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -106,10 +113,10 @@ const toggleStatus = (branch) => {
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         <tr v-for="branch in branches" :key="branch.id">
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <div class="text-sm font-medium text-gray-900">{{ branch.name }}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <div class="text-sm text-gray-500">{{ branch.address || '-' }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -124,7 +131,7 @@ const toggleStatus = (branch) => {
                                     {{ branch.status === 'active' ? 'Hoạt động' : 'Tạm dừng' }}
                                 </button>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <td class="px-6 py-4 text-right text-sm font-medium">
                                 <button
                                     @click="openModal(branch)"
                                     class="text-indigo-600 hover:text-indigo-900 mr-4"

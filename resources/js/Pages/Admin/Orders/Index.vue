@@ -83,7 +83,16 @@ const getStatusText = (status) => {
 
         <!-- Orders Table -->
         <div class="bg-white shadow rounded-lg overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="admin-list-table">
+                <colgroup>
+                    <col style="width: 14%;" />
+                    <col style="width: 11%;" />
+                    <col style="width: 14%;" />
+                    <col style="width: 14%;" />
+                    <col style="width: 14%;" />
+                    <col style="width: 17%;" />
+                    <col style="width: 16%;" />
+                </colgroup>
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -112,27 +121,27 @@ const getStatusText = (status) => {
                 <tbody class="bg-white divide-y divide-gray-200">
                     <template v-for="order in orders" :key="order.id">
                         <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <div class="text-sm font-medium text-gray-900">{{ order.order_code }}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <div class="text-sm text-gray-500">{{ order.table ? order.table.name : '-' }}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <div class="text-sm text-gray-500">{{ order.branch ? order.branch.name : '-' }}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <div class="text-sm text-gray-500">{{ order.user ? order.user.name : '-' }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">{{ formatPrice(order.total_price) }}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <select
                                     :value="order.status"
                                     @change="updateStatus(order, $event.target.value)"
                                     :class="getStatusClass(order.status)"
-                                    class="px-2 py-1 text-xs leading-5 font-semibold rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    class="max-w-full px-2 py-1 text-xs leading-5 font-semibold rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
                                     <option value="pending">Chờ bếp</option>
                                     <option value="serving">Đang phục vụ</option>
@@ -140,7 +149,7 @@ const getStatusText = (status) => {
                                     <option value="cancelled">Đã hủy</option>
                                 </select>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <td class="px-6 py-4 text-right text-sm font-medium">
                                 <button
                                     @click="deleteOrder(order)"
                                     class="text-red-600 hover:text-red-900"

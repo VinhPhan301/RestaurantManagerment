@@ -1,3 +1,14 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+    .admin-list-table {
+        @apply w-full table-fixed divide-y divide-gray-200;
+    }
+
+    .admin-list-table th,
+    .admin-list-table td {
+        overflow-wrap: anywhere;
+    }
+}

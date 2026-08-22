@@ -1,6 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 
 const props = defineProps({
@@ -15,6 +15,8 @@ const isEditing = ref(false);
 const editingMenu = ref(null);
 const imagePreview = ref(null);
 const selectedBranchId = ref(props.filters.branch_id || '');
+const selectedCategoryId = ref(props.filters.category_id || '');
+const searchQuery = ref(props.filters.search || '');
 const page = usePage();
 const isManager = page.props.auth.user.role === 'manager';
 
@@ -30,16 +32,30 @@ const form = useForm({
     is_must_try: false,
 });
 
-watch(selectedBranchId, (value) => {
-    if (isManager) {
-        return;
+const applyFilters = () => {
+    const params = {};
+
+    if (!isManager && selectedBranchId.value) {
+        params.branch_id = selectedBranchId.value;
+    }
+    if (selectedCategoryId.value) {
+        params.category_id = selectedCategoryId.value;
+    }
+    if (searchQuery.value.trim()) {
+        params.search = searchQuery.value.trim();
     }
 
-    const params = new URLSearchParams();
-    if (value) {
-        params.set('branch_id', value);
+    router.get(route('admin.menus.index'), params, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+};
+
+watch(selectedBranchId, (value, oldValue) => {
+    if (!isManager && value !== oldValue) {
+        applyFilters();
     }
-    window.location.href = route('admin.menus.index') + (value ? '?' + params.toString() : '');
 });
 
 const openModal = (menu = null) => {
@@ -141,23 +157,76 @@ const formatPrice = (price) => {
         </div>
 
         <!-- Filter -->
-        <div v-if="!isManager" class="bg-white shadow rounded-lg p-4 mb-6">
-            <div class="flex items-center gap-4">
-                <label class="text-gray-700 font-medium">Lọc theo chi nhánh:</label>
-                <select
-                    v-model="selectedBranchId"
-                    class="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <form @submit.prevent="applyFilters" class="bg-white shadow rounded-lg p-4 mb-6">
+            <div
+                class="grid gap-4 md:items-end"
+                :class="isManager ? 'md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]' : 'md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'"
+            >
+                <div>
+                    <label for="menu-search" class="block text-sm font-medium text-gray-700 mb-1">
+                        Tìm theo tên món ăn
+                    </label>
+                    <input
+                        id="menu-search"
+                        v-model="searchQuery"
+                        type="search"
+                        placeholder="Nhập tên món ăn..."
+                        class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
+
+                <div>
+                    <label for="menu-category" class="block text-sm font-medium text-gray-700 mb-1">
+                        Lọc theo danh mục
+                    </label>
+                    <select
+                        id="menu-category"
+                        v-model="selectedCategoryId"
+                        class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="">Tất cả danh mục</option>
+                        <option v-for="category in categories" :key="category.id" :value="category.id">
+                            {{ category.name }}
+                        </option>
+                    </select>
+                </div>
+
+                <div v-if="!isManager">
+                    <label for="menu-branch" class="block text-sm font-medium text-gray-700 mb-1">
+                        Lọc theo chi nhánh
+                    </label>
+                    <select
+                        id="menu-branch"
+                        v-model="selectedBranchId"
+                        class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="">Tất cả chi nhánh</option>
+                        <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                            {{ branch.name }}
+                        </option>
+                    </select>
+                </div>
+
+                <button
+                    type="submit"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
                 >
-                    <option value="">Tất cả chi nhánh</option>
-                    <option v-for="branch in branches" :key="branch.id" :value="branch.id">
-                        {{ branch.name }}
-                    </option>
-                </select>
+                    Lọc
+                </button>
             </div>
-        </div>
+        </form>
 
         <div class="bg-white shadow rounded-lg overflow-hidden">
-                <table class="min-w-full divide-y divide-gray-200">
+                <table class="admin-list-table">
+                    <colgroup>
+                        <col style="width: 10%;" />
+                        <col style="width: 26%;" />
+                        <col style="width: 13%;" />
+                        <col style="width: 10%;" />
+                        <col style="width: 12%;" />
+                        <col style="width: 15%;" />
+                        <col style="width: 14%;" />
+                    </colgroup>
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -185,7 +254,7 @@ const formatPrice = (price) => {
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         <tr v-for="menu in menus" :key="menu.id">
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <img
                                     v-if="menu.image"
                                     :src="`/storage/${menu.image}`"
@@ -196,17 +265,17 @@ const formatPrice = (price) => {
                                     <span class="text-gray-400 text-xs">No img</span>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <div class="text-sm font-medium text-gray-900">{{ menu.name }}</div>
                                 <div class="text-sm text-gray-500 text-xs">{{ menu.description || '-' }}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <div class="text-sm text-gray-500">{{ menu.category ? menu.category.name : '-' }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">{{ formatPrice(menu.price) }}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <span
                                     :class="menu.is_available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
                                     class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
@@ -214,8 +283,8 @@ const formatPrice = (price) => {
                                     {{ menu.is_available ? 'Có sẵn' : 'Hết hàng' }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex gap-1">
+                            <td class="px-6 py-4">
+                                <div class="flex flex-wrap gap-1">
                                     <span
                                         v-if="menu.is_best_seller"
                                         class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800"
@@ -230,7 +299,7 @@ const formatPrice = (price) => {
                                     </span>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <td class="px-6 py-4 text-right text-sm font-medium">
                                 <button
                                     @click="openModal(menu)"
                                     class="text-indigo-600 hover:text-indigo-900 mr-4"

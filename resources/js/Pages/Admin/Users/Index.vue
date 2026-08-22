@@ -1,10 +1,10 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 
 const props = defineProps({
-    users: Array,
+    users: Object,
     branches: Array,
     filters: Object,
 });
@@ -13,6 +13,7 @@ const showModal = ref(false);
 const isEditing = ref(false);
 const editingUser = ref(null);
 const selectedBranchId = ref(props.filters.branch_id || '');
+const search = ref(props.filters.search || '');
 const page = usePage();
 const isManager = page.props.auth.user.role === 'manager';
 
@@ -24,16 +25,41 @@ const form = useForm({
     branch_id: '',
 });
 
-watch(selectedBranchId, (value) => {
+const applyFilters = () => {
+    const params = {};
+
+    if (selectedBranchId.value) {
+        params.branch_id = selectedBranchId.value;
+    }
+
+    if (search.value.trim()) {
+        params.search = search.value.trim();
+    }
+
+    router.get(route('admin.users.index'), params, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+};
+
+const clearFilters = () => {
+    search.value = '';
+
+    if (isManager) {
+        applyFilters();
+        return;
+    }
+
+    selectedBranchId.value = '';
+};
+
+watch(selectedBranchId, () => {
     if (isManager) {
         return;
     }
 
-    const params = new URLSearchParams();
-    if (value) {
-        params.set('branch_id', value);
-    }
-    window.location.href = route('admin.users.index') + (value ? '?' + params.toString() : '');
+    applyFilters();
 });
 
 const openModal = (user = null) => {
@@ -84,6 +110,10 @@ const submit = () => {
     }
 };
 
+const paginationLabel = (label) => label
+    .replace('&laquo;', '«')
+    .replace('&raquo;', '»');
+
 const deleteUser = (user) => {
     if (confirm('Bạn có chắc chắn muốn xóa nhân viên này?')) {
         form.delete(route('admin.users.destroy', user.id));
@@ -102,10 +132,22 @@ const deleteUser = (user) => {
             </button>
         </div>
             <!-- Filter -->
-            <div v-if="!isManager" class="bg-white shadow rounded-lg p-4 mb-6">
-                <div class="flex items-center gap-4">
-                    <label class="text-gray-700 font-medium">Lọc theo chi nhánh:</label>
+            <div class="bg-white shadow rounded-lg p-4 mb-6">
+                <form class="flex flex-col md:flex-row md:items-end gap-4" @submit.prevent="applyFilters">
+                    <div class="flex-1">
+                        <label for="user-search" class="block text-gray-700 font-medium mb-2">Tìm theo tên hoặc email:</label>
+                        <input
+                            id="user-search"
+                            v-model="search"
+                            type="search"
+                            placeholder="Nhập tên hoặc email nhân viên"
+                            class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div v-if="!isManager">
+                        <label for="user-branch" class="block text-gray-700 font-medium mb-2">Lọc theo chi nhánh:</label>
                     <select
+                        id="user-branch"
                         v-model="selectedBranchId"
                         class="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
@@ -114,12 +156,34 @@ const deleteUser = (user) => {
                             {{ branch.name }}
                         </option>
                     </select>
-                </div>
+                    </div>
+                    <button
+                        type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+                    >
+                        Tìm kiếm
+                    </button>
+                    <button
+                        v-if="search || (!isManager && selectedBranchId)"
+                        type="button"
+                        @click="clearFilters"
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
+                    >
+                        Xóa lọc
+                    </button>
+                </form>
             </div>
 
             <!-- Users Table -->
             <div class="bg-white shadow rounded-lg overflow-hidden">
-                <table class="min-w-full divide-y divide-gray-200">
+                <table class="admin-list-table">
+                    <colgroup>
+                        <col style="width: 22%;" />
+                        <col style="width: 27%;" />
+                        <col style="width: 14%;" />
+                        <col style="width: 19%;" />
+                        <col style="width: 18%;" />
+                    </colgroup>
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -140,11 +204,11 @@ const deleteUser = (user) => {
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        <tr v-for="user in users" :key="user.id">
-                            <td class="px-6 py-4 whitespace-nowrap">
+                        <tr v-for="user in users.data" :key="user.id">
+                            <td class="px-6 py-4">
                                 <div class="text-sm font-medium text-gray-900">{{ user.name }}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <div class="text-sm text-gray-500">{{ user.email }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -155,10 +219,10 @@ const deleteUser = (user) => {
                                     {{ user.role === 'manager' ? 'Manager' : 'Staff' }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 <div class="text-sm text-gray-500">{{ user.branch ? user.branch.name : '-' }}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <td class="px-6 py-4 text-right text-sm font-medium">
                                 <button
                                     @click="openModal(user)"
                                     class="text-indigo-600 hover:text-indigo-900 mr-4"
@@ -173,13 +237,39 @@ const deleteUser = (user) => {
                                 </button>
                             </td>
                         </tr>
-                        <tr v-if="users.length === 0">
+                        <tr v-if="users.data.length === 0">
                             <td colspan="5" class="px-6 py-4 text-center text-gray-500">
-                                Chưa có nhân viên nào
+                                Không tìm thấy nhân viên nào
                             </td>
                         </tr>
                     </tbody>
                 </table>
+                <div v-if="users.last_page > 1" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-gray-200 px-6 py-4">
+                    <p class="text-sm text-gray-500">
+                        Hiển thị {{ users.from }}-{{ users.to }} trong tổng số {{ users.total }} nhân viên
+                    </p>
+                    <nav class="flex flex-wrap gap-1" aria-label="Phân trang nhân viên">
+                        <template v-for="link in users.links" :key="link.label">
+                            <Link
+                                v-if="link.url"
+                                :href="link.url"
+                                preserve-scroll
+                                class="px-3 py-1 rounded border text-sm transition"
+                                :class="link.active
+                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'"
+                            >
+                                {{ paginationLabel(link.label) }}
+                            </Link>
+                            <span
+                                v-else
+                                class="px-3 py-1 rounded border border-gray-200 text-sm text-gray-400"
+                            >
+                                {{ paginationLabel(link.label) }}
+                            </span>
+                        </template>
+                    </nav>
+                </div>
             </div>
 
         <!-- Modal -->

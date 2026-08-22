@@ -1,10 +1,10 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { useForm, usePage } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { router, useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
-    tables: Array,
+    tables: Object,
     branches: Array,
     filters: Object,
 });
@@ -15,6 +15,7 @@ const editingTable = ref(null);
 const selectedBranchId = ref(props.filters.branch_id || '');
 const page = usePage();
 const isManager = page.props.auth.user.role === 'manager';
+const tableRows = computed(() => props.tables?.data || []);
 
 const form = useForm({
     branch_id: '',
@@ -107,6 +108,17 @@ const toggleStatus = (table) => {
     });
 };
 
+const visitPage = (url) => {
+    if (!url) {
+        return;
+    }
+
+    router.visit(url, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
 const getStatusClass = (status) => {
     const classes = {
         empty: 'bg-green-100 text-green-800',
@@ -155,7 +167,15 @@ const getStatusText = (status) => {
 
         <!-- Tables Table -->
         <div class="bg-white shadow rounded-lg overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="admin-list-table">
+                <colgroup>
+                    <col style="width: 14%;" />
+                    <col style="width: 18%;" />
+                    <col style="width: 12%;" />
+                    <col style="width: 16%;" />
+                    <col style="width: 26%;" />
+                    <col style="width: 14%;" />
+                </colgroup>
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -179,11 +199,11 @@ const getStatusText = (status) => {
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    <tr v-for="table in tables" :key="table.id">
-                        <td class="px-6 py-4 whitespace-nowrap">
+                    <tr v-for="table in tableRows" :key="table.id">
+                        <td class="px-6 py-4">
                             <div class="text-sm font-medium text-gray-900">{{ table.name }}</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             <div class="text-sm text-gray-500">{{ table.branch ? table.branch.name : '-' }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -207,7 +227,7 @@ const getStatusText = (status) => {
                             </div>
                             <div v-else class="text-sm text-gray-400">-</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <td class="px-6 py-4 text-right text-sm font-medium">
                             <button
                                 @click="openModal(table)"
                                 class="text-indigo-600 hover:text-indigo-900 mr-4"
@@ -222,13 +242,31 @@ const getStatusText = (status) => {
                             </button>
                         </td>
                     </tr>
-                    <tr v-if="tables.length === 0">
+                    <tr v-if="tableRows.length === 0">
                         <td colspan="6" class="px-6 py-4 text-center text-gray-500">
                             Chưa có bàn nào
                         </td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <div v-if="tables && tables.last_page > 1" class="mt-6 flex flex-wrap justify-center gap-1">
+            <button
+                v-for="(link, index) in tables.links"
+                :key="`${index}-${link.label}`"
+                type="button"
+                :disabled="!link.url"
+                @click="visitPage(link.url)"
+                class="px-3 py-2 text-sm border rounded-md transition"
+                :class="[
+                    link.active
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50',
+                    !link.url ? 'opacity-50 cursor-not-allowed' : '',
+                ]"
+                v-html="link.label"
+            ></button>
         </div>
 
         <!-- Modal -->

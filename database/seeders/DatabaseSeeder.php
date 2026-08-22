@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Menu;
-use App\Models\Table;
 use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -33,6 +32,8 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
+        $this->call(TableSeeder::class);
+
         // Tạo tài khoản Admin tổng
         User::create([
             'name' => 'Admin',
@@ -42,22 +43,7 @@ class DatabaseSeeder extends Seeder
             'branch_id' => null,
         ]);
 
-        // Tạo 2 tài khoản Staff mẫu thuộc Cơ sở Cầu Giấy
-        User::create([
-            'name' => 'Staff 1',
-            'email' => 'staff1@restaurant.com',
-            'password' => Hash::make('password'),
-            'role' => 'staff',
-            'branch_id' => $branchCauGiay->id,
-        ]);
-
-        User::create([
-            'name' => 'Manager 1',
-            'email' => 'manager1@restaurant.com',
-            'password' => Hash::make('password'),
-            'role' => 'manager',
-            'branch_id' => $branchCauGiay->id,
-        ]);
+        $this->call(UserSeeder::class);
 
         // Tạo 6 Danh mục mẫu
         $categories = [
@@ -101,14 +87,5 @@ class DatabaseSeeder extends Seeder
             Menu::create($item);
         }
 
-        // Tạo 5 bàn ăn mẫu cho Cơ sở Cầu Giấy
-        for ($i = 1; $i <= 5; $i++) {
-            Table::create([
-                'branch_id' => $branchCauGiay->id,
-                'name' => 'Bàn ' . str_pad($i, 2, '0', STR_PAD_LEFT),
-                'capacity' => 4,
-                'status' => 'empty',
-            ]);
-        }
     }
 }
